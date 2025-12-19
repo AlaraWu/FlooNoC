@@ -16,6 +16,7 @@ dependencies:
   axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.39.7 }
   axi_riscv_atomics: { git: "https://github.com/pulp-platform/axi_riscv_atomics.git", version: 0.8.2 }
   floo_noc_pd: {path: ./pd}
+  redundancy_cells: { path: ../redundancy_cells }
 
 export_include_dirs:
   - hw/include
@@ -43,11 +44,15 @@ sources:
   - hw/floo_reduction_arbiter.sv
   # Level 3
   - hw/floo_output_arbiter.sv
+  - hw/relfloo_encoder.sv
+  - hw/relfloo_decoder.sv
   # Level 4
   - hw/floo_nw_join.sv
   - hw/floo_axi_chimney.sv
   - hw/floo_nw_chimney.sv
   - hw/floo_router.sv
+  - hw/relfloo_axi_chimney.sv
+  - hw/relfloo_nw_chimney.sv
   # Level 5 (Wrappers)
   - hw/floo_axi_router.sv
   - hw/floo_nw_router.sv
@@ -92,6 +97,8 @@ sources:
       - hw/tb/tb_floo_rob.sv
       - hw/tb/tb_floo_vc_router.sv
       - hw/tb/tb_floo_rob_multicast.sv
+      - hw/tb/tb_relfloo_axi_chimney.sv
+      - hw/tb/tb_relfloo_nw_chimney.sv
 
   - target: all(any(floo_test, floo_synth), axi_mesh)
     files:

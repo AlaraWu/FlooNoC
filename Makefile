@@ -22,7 +22,7 @@ run-sim-batch: run-vsim-batch
 # Programs #
 ############
 
-QUESTA_SEPP ?=
+QUESTA_SEPP ?= questa-2025.1
 VCS_SEPP    ?=
 
 BENDER     	?= bender
@@ -51,6 +51,7 @@ VLOG_ARGS += -suppress vlog-13314
 VLOG_ARGS += -suppress vlog-13233
 VLOG_ARGS += -timescale \"1 ns / 1 ps\"
 VLOG_ARGS += -work $(WORK)
+VLOG_ARGS += +define+RELNOC
 
 VSIM_FLAGS += -64
 VSIM_FLAGS += -t 1ps
