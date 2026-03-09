@@ -15,8 +15,8 @@ FLOO_ROOT ?= $(shell pwd)
 # Programs #
 ############
 
-QUESTA_SEPP ?=
-VCS_SEPP    ?=
+QUESTA_SEPP ?= questa-2025.1
+VCS_SEPP    ?= vcs-2025.06
 
 BENDER     	?= bender
 VSIM       	?= $(QUESTA_SEPP) vsim
@@ -34,6 +34,9 @@ BENDER_FLAGS += -t test
 BENDER_FLAGS += -t floo_test
 BENDER_FLAGS += -t snitch_cluster
 BENDER_FLAGS += -t idma_test
+ifdef TMR
+    BENDER_FLAGS += -t tmrg
+endif
 BENDER_FLAGS := $(BENDER_FLAGS) $(EXTRA_BENDER_FLAGS)
 
 WORK 	 		?= work

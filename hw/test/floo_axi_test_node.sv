@@ -8,6 +8,7 @@
 
 /// A AXI4 Bus Master-Slave Node for generating random AXI transactions
 module floo_axi_test_node #(
+  parameter int unsigned DELAY = 0,
   parameter floo_pkg::axi_cfg_t AxiCfg = '{default:0},
   parameter type mst_req_t = logic,
   parameter type mst_rsp_t = logic,
@@ -98,6 +99,7 @@ module floo_axi_test_node #(
   axi_rand_master_t axi_rand_master;
   initial begin
     axi_rand_master = new( master_dv);
+    // axi_rand_master.srandom($urandom ^ DELAY);
     end_of_sim = 1'b0;
 
     for (int i = 0; i < NumAddrRegions; i++) begin
@@ -110,6 +112,7 @@ module floo_axi_test_node #(
     // end
     axi_rand_master.reset();
     @(posedge rst_ni)
+    repeat (DELAY) @(posedge clk_i);
     axi_rand_master.run(NumReads, NumWrites);
     end_of_sim = 1'b1;
   end
