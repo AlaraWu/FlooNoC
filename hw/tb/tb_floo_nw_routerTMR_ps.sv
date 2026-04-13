@@ -8,10 +8,10 @@
 `include "axi/assign.svh"
 `include "floo_noc/typedef.svh"
 
-// Wrapper for the DUT nw_router (TMR variant)
-// Same port signature as baseline floo_nw_router_dut_wrapper:
-// single-copy inputs are fanned out to A/B/C, triplicated outputs are voted.
-module floo_nw_routerTMR_dut_wrapper #(
+// Post-synthesis wrapper for the DUT nw_router (TMR variant).
+// Instantiates floo_synth_nw_routerTMR (the synthesized netlist) instead of RTL.
+// Single-copy inputs are fanned out to A/B/C, triplicated outputs are voted.
+module floo_nw_routerTMR_dut_wrapper_ps #(
   parameter int unsigned NumRoutes = floo_test_pkg::NumRoutes,
   parameter int unsigned NumInputs = NumRoutes,
   parameter int unsigned NumOutputs = NumRoutes,
@@ -58,7 +58,8 @@ module floo_nw_routerTMR_dut_wrapper #(
   assign floo_wide_iC = floo_wide_i;
 
   // -----------------------------------------------------------------------
-  //  TMR router instance
+  //  Post-synthesis netlist instantiation
+  //  floo_synth_nw_routerTMR has no parameters (fixed by synthesis).
   // -----------------------------------------------------------------------
   floo_req_t  [NumOutputs-1:0] floo_req_oA, floo_req_oB, floo_req_oC;
   floo_rsp_t  [NumInputs-1:0]  floo_rsp_oA, floo_rsp_oB, floo_rsp_oC;
@@ -66,57 +67,33 @@ module floo_nw_routerTMR_dut_wrapper #(
 
   logic tmrErrorA, tmrErrorB, tmrErrorC;
 
-  floo_nw_routerTMR #(
-    .AxiCfgN      ( floo_test_pkg::AxiCfgN         ),
-    .AxiCfgW      ( floo_test_pkg::AxiCfgW         ),
-    .RouteAlgo    ( floo_pkg::XYRouting             ),
-    .NumRoutes    ( floo_pkg::NumDirections         ),
-    .InFifoDepth  ( floo_test_pkg::ChannelFifoDepth ),
-    .OutFifoDepth ( floo_test_pkg::OutputFifoDepth  ),
-    .id_t         ( id_t                            ),
-    .NumAddrRules ( NumAddrRules                    ),
-    .addr_rule_t   ( addr_rule_t                      ),
-    .hdr_t        ( hdr_t                           ),
-    .floo_req_t   ( floo_req_t                      ),
-    .floo_rsp_t   ( floo_rsp_t                      ),
-    .floo_wide_t  ( floo_wide_t                     )
-  ) i_dut (
-    .clk_iA          ( clk_i                 ),
-    .clk_iB          ( clk_i                 ),
-    .clk_iC          ( clk_i                 ),
-    .rst_niA         ( rst_ni                ),
-    .rst_niB         ( rst_ni                ),
-    .rst_niC         ( rst_ni                ),
-    .test_enable_iA  ( 1'b0                  ),
-    .test_enable_iB  ( 1'b0                  ),
-    .test_enable_iC  ( 1'b0                  ),
-    .id_iA           ( id_i                  ),
-    .id_iB           ( id_i                  ),
-    .id_iC           ( id_i                  ),
-    .id_route_map_iA ( id_route_map_i        ),
-    .id_route_map_iB ( id_route_map_i        ),
-    .id_route_map_iC ( id_route_map_i        ),
-    .floo_req_iA     ( floo_req_iA            ),
-    .floo_req_iB     ( floo_req_iB            ),
-    .floo_req_iC     ( floo_req_iC            ),
-    .floo_rsp_iA     ( floo_rsp_iA            ),
-    .floo_rsp_iB     ( floo_rsp_iB            ),
-    .floo_rsp_iC     ( floo_rsp_iC            ),
-    .floo_req_oA     ( floo_req_oA            ),
-    .floo_req_oB     ( floo_req_oB            ),
-    .floo_req_oC     ( floo_req_oC            ),
-    .floo_rsp_oA     ( floo_rsp_oA            ),
-    .floo_rsp_oB     ( floo_rsp_oB            ),
-    .floo_rsp_oC     ( floo_rsp_oC            ),
-    .floo_wide_iA    ( floo_wide_iA           ),
-    .floo_wide_iB    ( floo_wide_iB           ),
-    .floo_wide_iC    ( floo_wide_iC           ),
-    .floo_wide_oA    ( floo_wide_oA           ),
-    .floo_wide_oB    ( floo_wide_oB           ),
-    .floo_wide_oC    ( floo_wide_oC           ),
-    .tmrErrorA       ( tmrErrorA              ),
-    .tmrErrorB       ( tmrErrorB              ),
-    .tmrErrorC       ( tmrErrorC              )
+  floo_synth_nw_routerTMR i_dut (
+    .clk_i          ( clk_i                 ),
+    .rst_ni         ( rst_ni                ),
+    .test_enable_i  ( 1'b0                  ),
+    .id_i           ( id_i                  ),
+    .id_route_map_i ( 1'b0                  ),
+    .floo_req_iA    ( floo_req_iA           ),
+    .floo_req_iB    ( floo_req_iB           ),
+    .floo_req_iC    ( floo_req_iC           ),
+    .floo_rsp_iA    ( floo_rsp_iA           ),
+    .floo_rsp_iB    ( floo_rsp_iB           ),
+    .floo_rsp_iC    ( floo_rsp_iC           ),
+    .floo_req_oA    ( floo_req_oA           ),
+    .floo_req_oB    ( floo_req_oB           ),
+    .floo_req_oC    ( floo_req_oC           ),
+    .floo_rsp_oA    ( floo_rsp_oA           ),
+    .floo_rsp_oB    ( floo_rsp_oB           ),
+    .floo_rsp_oC    ( floo_rsp_oC           ),
+    .floo_wide_iA   ( floo_wide_iA          ),
+    .floo_wide_iB   ( floo_wide_iB          ),
+    .floo_wide_iC   ( floo_wide_iC          ),
+    .floo_wide_oA   ( floo_wide_oA          ),
+    .floo_wide_oB   ( floo_wide_oB          ),
+    .floo_wide_oC   ( floo_wide_oC          ),
+    .tmrErrorA      ( tmrErrorA             ),
+    .tmrErrorB      ( tmrErrorB             ),
+    .tmrErrorC      ( tmrErrorC             )
   );
 
   // -----------------------------------------------------------------------
@@ -132,25 +109,30 @@ module floo_nw_routerTMR_dut_wrapper #(
   logic [NumInputs-1:0]  border_rsp_voter_err;
   logic [NumRoutes-1:0]  border_wide_voter_err;
 
+  // Border voting using inline logic (avoids name collision with netlist's
+  // uniquified majorityVoter_* modules)
   for (genvar i = 0; i < NumOutputs; i++) begin : gen_req_border_vote
-    majorityVoter #(.WIDTH($bits(floo_req_t))) i_req_voter (
-      .inA(floo_req_oA[i]), .inB(floo_req_oB[i]), .inC(floo_req_oC[i]),
-      .out(floo_req_o[i]), .tmrErr(border_req_voter_err[i])
-    );
+    assign floo_req_o[i] = (floo_req_oA[i] & floo_req_oB[i]) |
+                           (floo_req_oA[i] & floo_req_oC[i]) |
+                           (floo_req_oB[i] & floo_req_oC[i]);
+    assign border_req_voter_err[i] = (floo_req_oA[i] != floo_req_oB[i]) |
+                                     (floo_req_oB[i] != floo_req_oC[i]);
   end
 
   for (genvar i = 0; i < NumInputs; i++) begin : gen_rsp_border_vote
-    majorityVoter #(.WIDTH($bits(floo_rsp_t))) i_rsp_voter (
-      .inA(floo_rsp_oA[i]), .inB(floo_rsp_oB[i]), .inC(floo_rsp_oC[i]),
-      .out(floo_rsp_o[i]), .tmrErr(border_rsp_voter_err[i])
-    );
+    assign floo_rsp_o[i] = (floo_rsp_oA[i] & floo_rsp_oB[i]) |
+                           (floo_rsp_oA[i] & floo_rsp_oC[i]) |
+                           (floo_rsp_oB[i] & floo_rsp_oC[i]);
+    assign border_rsp_voter_err[i] = (floo_rsp_oA[i] != floo_rsp_oB[i]) |
+                                     (floo_rsp_oB[i] != floo_rsp_oC[i]);
   end
 
   for (genvar i = 0; i < NumRoutes; i++) begin : gen_wide_border_vote
-    majorityVoter #(.WIDTH($bits(floo_wide_t))) i_wide_voter (
-      .inA(floo_wide_oA[i]), .inB(floo_wide_oB[i]), .inC(floo_wide_oC[i]),
-      .out(floo_wide_o[i]), .tmrErr(border_wide_voter_err[i])
-    );
+    assign floo_wide_o[i] = (floo_wide_oA[i] & floo_wide_oB[i]) |
+                            (floo_wide_oA[i] & floo_wide_oC[i]) |
+                            (floo_wide_oB[i] & floo_wide_oC[i]);
+    assign border_wide_voter_err[i] = (floo_wide_oA[i] != floo_wide_oB[i]) |
+                                      (floo_wide_oB[i] != floo_wide_oC[i]);
   end
 
   logic border_corrected_fault;
@@ -185,8 +167,9 @@ module floo_nw_routerTMR_dut_wrapper #(
 
 endmodule
 
-/// Testbench for floo_nw_router:
-module tb_floo_nw_routerTMR;
+
+/// Post-synthesis testbench for floo_nw_routerTMR:
+module tb_floo_nw_routerTMR_ps;
 
   import floo_pkg::*;
 
@@ -205,11 +188,8 @@ module tb_floo_nw_routerTMR;
 
   // -----------------------------------------------------------------------
   //  NW Chimney configs
-  //  The Eject (master) chimney needs a RoB to reorder responses;
-  //  the slave chimneys use the default config.
   // -----------------------------------------------------------------------
   localparam chimney_cfg_t NarrowChimneyCfg = ChimneyDefaultCfg;
-  // Wide channel: keep default (no RoB needed for simple test, DMA generates ordered wide traffic)
   localparam chimney_cfg_t WideChimneyCfg = ChimneyDefaultCfg;
 
   // -----------------------------------------------------------------------
@@ -246,19 +226,6 @@ module tb_floo_nw_routerTMR;
   // Wide: subordinate side
   axi_wide_out_req_t   chimney_wide_out_req;
   axi_wide_out_rsp_t   chimney_wide_out_rsp;
-
-  // Id-remapped subordinate signals (used by monitors / comparators)
-  // axi_narrow_in_req_t  [NumEndpoints-1:0] narrow_out_req_id_mapped;
-  // axi_narrow_in_rsp_t  [NumEndpoints-1:0] narrow_out_rsp_id_mapped;
-  // axi_wide_in_req_t    [NumEndpoints-1:0] wide_out_req_id_mapped;
-  // axi_wide_in_rsp_t    [NumEndpoints-1:0] wide_out_rsp_id_mapped;
-
-  // for (genvar i = 0; i < NumEndpoints; i++) begin : gen_id_remap
-  //   `AXI_ASSIGN_REQ_STRUCT(narrow_out_req_id_mapped[i], chimney_narrow_out_req[i])
-  //   `AXI_ASSIGN_RESP_STRUCT(narrow_out_rsp_id_mapped[i], chimney_narrow_out_rsp[i])
-  //   `AXI_ASSIGN_REQ_STRUCT(wide_out_req_id_mapped[i], chimney_wide_out_req[i])
-  //   `AXI_ASSIGN_RESP_STRUCT(wide_out_rsp_id_mapped[i], chimney_wide_out_rsp[i])
-  // end
 
   // -----------------------------------------------------------------------
   //  Floo link signals
@@ -342,7 +309,6 @@ module tb_floo_nw_routerTMR;
     axi_narrow_addr_t end_addr;
   } node_addr_region_t;
 
-  // Address map overview
   localparam int unsigned NumAddrRegions = 5;
   localparam node_addr_region_t [NumAddrRegions-1:0] AddrRegions = '{
     '{idx: North, start_addr: 48'h00000000, end_addr: 48'h0000FFFF},
@@ -352,8 +318,6 @@ module tb_floo_nw_routerTMR;
     '{idx: Eject, start_addr: 48'h00120000, end_addr: 48'h0012FFFF}
   };
 
-  // No Y->X turn allowed, so North/South have fewer regions than East/West
-  // localparam int unsigned NumAddrRegionsNS = 2;
   localparam int unsigned NumAddrRegionsNS = 4;
   localparam int unsigned NumAddrRegionsEW = 4;
   localparam int unsigned NumAddrRegionsEject = 4;
@@ -364,10 +328,6 @@ module tb_floo_nw_routerTMR;
     '{idx: East,  start_addr: 48'h00120000, end_addr: 48'h0012FFFF},
     '{idx: North, start_addr: 48'h00210000, end_addr: 48'h0021FFFF}
   };
-  // localparam node_addr_region_t [NumAddrRegionsNS-1:0] NorthAddrRegions = '{
-  //   '{idx: Eject, start_addr: 48'h00110000, end_addr: 48'h0011FFFF},
-  //   '{idx: South, start_addr: 48'h00010000, end_addr: 48'h0001FFFF}
-  // };
   localparam node_addr_region_t [NumAddrRegionsNS-1:0] NorthAddrRegions = '{
     '{idx: Eject, start_addr: 48'h00110000, end_addr: 48'h0011FFFF},
     '{idx: South, start_addr: 48'h00010000, end_addr: 48'h0001FFFF},
@@ -380,10 +340,6 @@ module tb_floo_nw_routerTMR;
     '{idx: South, start_addr: 48'h00010000, end_addr: 48'h0001FFFF},
     '{idx: North, start_addr: 48'h00210000, end_addr: 48'h0021FFFF}
   };
-  // localparam node_addr_region_t [NumAddrRegionsNS-1:0] SouthAddrRegions = '{
-  //   '{idx: Eject, start_addr: 48'h00110000, end_addr: 48'h0011FFFF},
-  //   '{idx: North, start_addr: 48'h00210000, end_addr: 48'h0021FFFF}
-  // };
   localparam node_addr_region_t [NumAddrRegionsNS-1:0] SouthAddrRegions = '{
     '{idx: Eject, start_addr: 48'h00110000, end_addr: 48'h0011FFFF},
     '{idx: North, start_addr: 48'h00210000, end_addr: 48'h0021FFFF},
@@ -610,7 +566,7 @@ module tb_floo_nw_routerTMR;
   end
 
   // -----------------------------------------------------------------------
-  //  NW Router (DUT)
+  //  NW Router (DUT) — post-synthesis TMR
   // -----------------------------------------------------------------------
   floo_axi_test_node #(
     .DELAY ( 0 ),
@@ -621,7 +577,6 @@ module tb_floo_nw_routerTMR;
     .slv_rsp_t      ( axi_narrow_out_rsp_t    ),
     .ApplTime       ( ApplTime                ),
     .TestTime       ( TestTime                ),
-    // .Atops          ( floo_test_pkg::AtopSupport ),
     .NumAddrRegions ( NumAddrRegionsEject          ),
     .rule_t         ( node_addr_region_t      ),
     .AddrRegions    ( EjectAddrRegions             ),
@@ -647,7 +602,6 @@ module tb_floo_nw_routerTMR;
     .slv_rsp_t      ( axi_wide_out_rsp_t      ),
     .ApplTime       ( ApplTime                ),
     .TestTime       ( TestTime                ),
-    // .Atops          ( floo_test_pkg::AtopSupport ),
     .NumAddrRegions ( NumAddrRegionsEject          ),
     .rule_t         ( node_addr_region_t      ),
     .AddrRegions    ( EjectAddrRegions             ),
@@ -670,8 +624,6 @@ module tb_floo_nw_routerTMR;
     .ChimneyCfgN          ( floo_test_pkg::ChimneyCfg      ),
     .ChimneyCfgW          ( floo_test_pkg::ChimneyCfg      ),
     .RouteCfg             ( floo_test_pkg::RouteCfg        ),
-    // .AtopSupport          ( floo_test_pkg::AtopSupport     ),
-    // .MaxAtomicTxns        ( 1'b1   ),
     .hdr_t                ( hdr_t                          ),
     .id_t                 ( id_t                           ),
     .axi_narrow_in_req_t  ( axi_narrow_in_req_t            ),
@@ -708,7 +660,7 @@ module tb_floo_nw_routerTMR;
     .floo_wide_i          ( floo_wide_out[1][1][Eject]    )
   );
 
-  floo_nw_routerTMR_dut_wrapper #(
+  floo_nw_routerTMR_dut_wrapper_ps #(
     .id_t ( id_t ),
     .addr_rule_t ( node_addr_region_t ),
     .hdr_t ( hdr_t ),
@@ -720,7 +672,7 @@ module tb_floo_nw_routerTMR;
     .clk_i        ( clk                 ),
     .rst_ni       ( rst_n               ),
     .id_i         ( '{x: 2'd1, y: 2'd1, port_id: 1'd0} ),
-    .id_route_map_i ( '0                  ),  // Not used for XY routing
+    .id_route_map_i ( '0                  ),
     .floo_req_i     ( floo_req_in[1][1]   ),
     .floo_rsp_i     ( floo_rsp_in[1][1]   ),
     .floo_req_o     ( floo_req_out[1][1]  ),
@@ -730,7 +682,7 @@ module tb_floo_nw_routerTMR;
     .end_of_sim_endpoints     ( end_of_sim_endpoints   ),
     .end_of_sim_monitor       ( mesh_end_of_sim  )
   );
-  
+
     floo_mesh_monitor #(
       .Verbose ( 1 ),
       .NumX ( 3 ),
@@ -807,16 +759,12 @@ module tb_floo_nw_routerTMR;
     end
   end
 
-  
-
   // -----------------------------------------------------------------------
   //  Simulation end
   // -----------------------------------------------------------------------
   initial begin
     $timeformat(-9, 2, " ns", 20);
     wait(&end_of_sim_endpoints && mesh_end_of_sim);
-    // Wait until compare modules confirm all transactions are verified.
-    // wait(narrow_cmp_done && wide_cmp_done);
     $display("[TB] All transactions verified by compare monitors. Stopping simulation.");
     $finish;
   end

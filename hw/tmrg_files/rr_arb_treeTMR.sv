@@ -539,7 +539,7 @@ majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_
     .tmrErr(req_qTmrErrorA)
   );
 
-majorityVoter #(.WIDTH( ($size(rr_qVotedA)) )) rr_qVoterA (
+majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterA (
     .inA(rr_qA),
     .inB(rr_qB),
     .inC(rr_qC),
@@ -564,7 +564,7 @@ majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_
     .tmrErr(req_qTmrErrorB)
   );
 
-majorityVoter #(.WIDTH( ($size(rr_qVotedA)) )) rr_qVoterB (
+majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterB (
     .inA(rr_qA),
     .inB(rr_qB),
     .inC(rr_qC),
@@ -589,7 +589,7 @@ majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_
     .tmrErr(req_qTmrErrorC)
   );
 
-majorityVoter #(.WIDTH( ($size(rr_qVotedA)) )) rr_qVoterC (
+majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterC (
     .inA(rr_qA),
     .inB(rr_qB),
     .inC(rr_qC),

@@ -42,6 +42,10 @@ BENDER_FLAGS := $(BENDER_FLAGS) $(EXTRA_BENDER_FLAGS)
 WORK 	 		?= work
 TB_DUT 		?= floo_noc_router_test
 
+ifneq (,$(filter %TMR,$(TB_DUT)))
+	BENDER_FLAGS += -t tmrg
+endif
+
 ######################
 # Traffic Generation #
 ######################

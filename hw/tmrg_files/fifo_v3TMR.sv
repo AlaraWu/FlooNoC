@@ -408,7 +408,7 @@ always_ff @( posedge clk_iC or negedge rst_niC )
         end
   end
 
-majorityVoter #(.WIDTH( $size(dtype)*FifoDepth)) mem_qVoterA (
+majorityVoter #(.WIDTH( $bits(dtype)*FifoDepth)) mem_qVoterA (
     .inA(mem_qA),
     .inB(mem_qB),
     .inC(mem_qC),
@@ -441,7 +441,7 @@ majorityVoter #(.WIDTH( ((((ADDR_DEPTH-1)>0) ? (ADDR_DEPTH-1) : - ( ADDR_DEPTH-1
   );
 assign tmrErrorA = mem_qTmrErrorA|read_pointer_qTmrErrorA|status_cnt_qTmrErrorA|write_pointer_qTmrErrorA;
 
-majorityVoter #(.WIDTH( $size(dtype)*FifoDepth)) mem_qVoterB (
+majorityVoter #(.WIDTH( $bits(dtype)*FifoDepth)) mem_qVoterB (
     .inA(mem_qA),
     .inB(mem_qB),
     .inC(mem_qC),
@@ -474,7 +474,7 @@ majorityVoter #(.WIDTH( ((((ADDR_DEPTH-1)>0) ? (ADDR_DEPTH-1) : - ( ADDR_DEPTH-1
   );
 assign tmrErrorB = mem_qTmrErrorB|read_pointer_qTmrErrorB|status_cnt_qTmrErrorB|write_pointer_qTmrErrorB;
 
-majorityVoter #(.WIDTH( $size(dtype)*FifoDepth)) mem_qVoterC (
+majorityVoter #(.WIDTH( $bits(dtype)*FifoDepth)) mem_qVoterC (
     .inA(mem_qA),
     .inB(mem_qB),
     .inC(mem_qC),

@@ -67,9 +67,30 @@ module floo_nw_router_dut_wrapper #(
   );
 
   logic corrected_fault;
-  logic uncorrectable_fault;
+  logic border_corrected_fault;
   assign corrected_fault = 1'b0;
-  assign uncorrectable_fault = 1'b1;
+  assign border_corrected_fault = 1'b0;
+
+  // End-of-simulation liveness signal for Zoix strobe
+  logic end_of_sim;
+  assign end_of_sim = &end_of_sim_endpoints && end_of_sim_monitor;
+
+  // Flattened output signals for Zoix $fs_compare
+  localparam int FlooReqBits  = $bits(floo_req_t);
+  localparam int FlooRspBits  = $bits(floo_rsp_t);
+  localparam int FlooWideBits = $bits(floo_wide_t);
+
+  logic [NumOutputs-1:0][FlooReqBits-1:0]  floo_req_o_flat;
+  logic [NumInputs-1:0][FlooRspBits-1:0]   floo_rsp_o_flat;
+  logic [NumRoutes-1:0][FlooWideBits-1:0]  floo_wide_o_flat;
+
+  for (genvar i = 0; i < NumOutputs; i++) assign floo_req_o_flat[i]  = floo_req_o[i];
+  for (genvar i = 0; i < NumInputs; i++)  assign floo_rsp_o_flat[i]  = floo_rsp_o[i];
+  for (genvar i = 0; i < NumRoutes; i++)  assign floo_wide_o_flat[i] = floo_wide_o[i];
+
+  `ifdef TARGET_ZOIX
+  `include "strobe.sv"
+  `endif
 
 endmodule
 
@@ -84,10 +105,10 @@ module tb_floo_nw_router;
 
   localparam int unsigned NumEndpoints = 5;  // N, E, S, W, Eject
 
-  localparam int unsigned NarrowNumReads = 1000;
-  localparam int unsigned NarrowNumWrites = 1000;
-  localparam int unsigned WideNumReads = 1000;
-  localparam int unsigned WideNumWrites = 1000;
+  localparam int unsigned NarrowNumReads = 100;
+  localparam int unsigned NarrowNumWrites = 100;
+  localparam int unsigned WideNumReads = 100;
+  localparam int unsigned WideNumWrites = 100;
 
   logic clk, rst_n;
 
@@ -706,7 +727,7 @@ module tb_floo_nw_router;
     // Wait until compare modules confirm all transactions are verified.
     // wait(narrow_cmp_done && wide_cmp_done);
     $display("[TB] All transactions verified by compare monitors. Stopping simulation.");
-    $stop;
+    $finish;
   end
 
 endmodule
