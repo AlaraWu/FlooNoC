@@ -732,7 +732,7 @@ module tb_floo_nw_routerTMR;
   );
   
     floo_mesh_monitor #(
-      .Verbose ( 1 ),
+      .Verbose ( 0 ),
       .NumX ( 3 ),
       .NumY ( 3 ),
       .floo_req_t ( floo_req_t ),

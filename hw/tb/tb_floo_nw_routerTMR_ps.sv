@@ -68,11 +68,21 @@ module floo_nw_routerTMR_dut_wrapper_ps #(
   logic tmrErrorA, tmrErrorB, tmrErrorC;
 
   floo_synth_nw_routerTMR i_dut (
-    .clk_i          ( clk_i                 ),
-    .rst_ni         ( rst_ni                ),
-    .test_enable_i  ( 1'b0                  ),
-    .id_i           ( id_i                  ),
-    .id_route_map_i ( 1'b0                  ),
+    .clk_iA          ( clk_i                 ),
+    .clk_iB          ( clk_i                 ),
+    .clk_iC          ( clk_i                 ),
+    .rst_niA         ( rst_ni                ),
+    .rst_niB         ( rst_ni                ),
+    .rst_niC         ( rst_ni                ),
+    .test_enable_iA  ( 1'b0                  ),
+    .test_enable_iB  ( 1'b0                  ),
+    .test_enable_iC  ( 1'b0                  ),
+    .id_iA           ( id_i                  ),
+    .id_iB           ( id_i                  ),
+    .id_iC           ( id_i                  ),
+    .id_route_map_iA ( 1'b0                  ),
+    .id_route_map_iB ( 1'b0                  ),
+    .id_route_map_iC ( 1'b0                  ),
     .floo_req_iA    ( floo_req_iA           ),
     .floo_req_iB    ( floo_req_iB           ),
     .floo_req_iC    ( floo_req_iC           ),
@@ -684,7 +694,7 @@ module tb_floo_nw_routerTMR_ps;
   );
 
     floo_mesh_monitor #(
-      .Verbose ( 1 ),
+      .Verbose ( 0 ),
       .NumX ( 3 ),
       .NumY ( 3 ),
       .floo_req_t ( floo_req_t ),
