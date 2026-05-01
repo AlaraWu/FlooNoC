@@ -3,14 +3,53 @@
 // SPDX-License-Identifier: SHL-0.51
 //
 // Author: Chen Wu <chenwu@iis.ee.ethz.ch>
+//
+// Unified fault-injection testbench for the FlooNoC NW router.
+// One file covers four DUT configurations, selected by Bender target /
+// preprocessor macro:
+//
+//   - baseline (neither macro): DUT = floo_nw_router, single-copy I/O.
+//   - TARGET_STMR: DUT = floo_nw_routerTMR (state-only). Single-copy data
+//                  ports identical to baseline; clk/rst are triplicated
+//                  (clk_iA/B/C, rst_niA/B/C) — TB drives all three from the
+//                  shared clk_i / rst_ni so GM behaves like baseline. Only
+//                  registers triplicated and voted internally; DUT exports
+//                  a single combined tmrError voter-error output. No border
+//                  voter (no replicated outputs to vote on).
+//   - TARGET_CTMR: DUT = floo_nw_routerTMR (coarse). Three unvoted replicas;
+//                  border majority voters in this wrapper. No DUT error.
+//   - TARGET_FTMR: DUT = floo_nw_routerTMR (full). Triplicated + internally
+//                  voted; DUT exports tmrErrorA/B/C; border voters here too.
+//
+// TARGET_NETLIST swaps the inner i_dut from RTL to the synthesized wrappers
+// (floo_synth_nw_router / floo_synth_nw_routerTMR), backed by a gate-level
+// netlist supplied at vlogan time. The wrapper module name and signal
+// hierarchy (i_dut_wrapper.i_dut.**) stay identical so strobe.sv and the
+// SFF FaultList scope work unchanged. STMR has no synth-wrapper variant
+// yet, so TARGET_STMR + TARGET_NETLIST is rejected.
+//
+// The macros TARGET_STMR / TARGET_CTMR / TARGET_FTMR / TARGET_NETLIST are
+// emitted automatically by Bender from `-t stmr` / `-t ctmr` / `-t ftmr` /
+// `-t netlist`. See floonoc_zoix/Makefile for the build flow.
 
 `include "axi/typedef.svh"
 `include "axi/assign.svh"
 `include "floo_noc/typedef.svh"
 
-// Post-synthesis wrapper for the DUT nw_router.
-// Instantiates floo_synth_nw_router (the synthesized netlist) instead of RTL.
-module floo_nw_router_dut_wrapper_ps #(
+// --------------------------------------------------------------------------
+// HAS_TMR: any TMR config (CTMR or FTMR)
+// --------------------------------------------------------------------------
+`ifdef TARGET_CTMR
+  `define HAS_TMR
+`endif
+`ifdef TARGET_FTMR
+  `define HAS_TMR
+`endif
+
+// --------------------------------------------------------------------------
+// Wrapper: single-copy external ports, macro-gated DUT selection internally.
+// --------------------------------------------------------------------------
+module floo_nw_router_fi_dut_wrapper #(
   parameter int unsigned NumRoutes = floo_test_pkg::NumRoutes,
   parameter int unsigned NumInputs = NumRoutes,
   parameter int unsigned NumOutputs = NumRoutes,
@@ -39,16 +78,116 @@ module floo_nw_router_dut_wrapper_ps #(
   input logic end_of_sim_monitor
 );
 
-  // -----------------------------------------------------------------------
-  //  Post-synthesis netlist instantiation
-  //  floo_synth_nw_router has no parameters (fixed by synthesis).
-  // -----------------------------------------------------------------------
+  // Defensive: TARGET_STMR / TARGET_CTMR / TARGET_FTMR are mutually exclusive
+  `ifdef TARGET_CTMR
+  `ifdef TARGET_FTMR
+    initial $fatal(1, "TARGET_CTMR and TARGET_FTMR are mutually exclusive");
+  `endif
+  `endif
+  `ifdef TARGET_STMR
+  `ifdef TARGET_CTMR
+    initial $fatal(1, "TARGET_STMR and TARGET_CTMR are mutually exclusive");
+  `endif
+  `ifdef TARGET_FTMR
+    initial $fatal(1, "TARGET_STMR and TARGET_FTMR are mutually exclusive");
+  `endif
+  `ifdef TARGET_NETLIST
+    initial $fatal(1, "TARGET_STMR has no synth-wrapper variant; TARGET_NETLIST not supported");
+  `endif
+  `endif
+
+  // --------------------------------------------------------------------
+  // Strobe-facing signals: declared unconditionally so strobe.sv stays
+  // config-agnostic. Unused branches drive them to 0.
+  // --------------------------------------------------------------------
+  logic                  dut_error;
+  logic                  border_error;
+  logic [NumOutputs-1:0] dut_req_replica_mismatch;
+  logic [NumInputs-1:0]  dut_rsp_replica_mismatch;
+  logic [NumRoutes-1:0]  dut_wide_replica_mismatch;
+
+`ifndef HAS_TMR
+  // ====================================================================
+  // BASELINE / STMR
+  // Single-copy I/O. TARGET_STMR swaps the module to floo_nw_routerTMR
+  // (state-only TMR) which keeps the same port list but exports a single
+  // combined tmrError voter-error output.
+  // ====================================================================
+  `ifdef TARGET_STMR
+  logic tmrError;
+  `endif
+
+  `ifndef TARGET_NETLIST
+    `ifdef TARGET_STMR
+    floo_nw_routerTMR #(
+      .AxiCfgN      ( floo_test_pkg::AxiCfgN          ),
+      .AxiCfgW      ( floo_test_pkg::AxiCfgW          ),
+      .RouteAlgo    ( floo_pkg::XYRouting             ),
+      .NumRoutes    ( floo_pkg::NumDirections         ),
+      .InFifoDepth  ( floo_test_pkg::ChannelFifoDepth ),
+      .OutFifoDepth ( floo_test_pkg::OutputFifoDepth  ),
+      .id_t         ( id_t                            ),
+      .NumAddrRules ( NumAddrRules                    ),
+      .addr_rule_t  ( addr_rule_t                     ),
+      .hdr_t        ( hdr_t                           ),
+      .floo_req_t   ( floo_req_t                      ),
+      .floo_rsp_t   ( floo_rsp_t                      ),
+      .floo_wide_t  ( floo_wide_t                     )
+    ) i_dut (
+      .clk_iA         ( clk_i                 ),
+      .clk_iB         ( clk_i                 ),
+      .clk_iC         ( clk_i                 ),
+      .rst_niA        ( rst_ni                ),
+      .rst_niB        ( rst_ni                ),
+      .rst_niC        ( rst_ni                ),
+      .test_enable_i  ( 1'b0                  ),
+      .id_i           ( id_i                  ),
+      .id_route_map_i ( id_route_map_i        ),
+      .floo_req_i     ( floo_req_i            ),
+      .floo_rsp_i     ( floo_rsp_i            ),
+      .floo_req_o     ( floo_req_o            ),
+      .floo_rsp_o     ( floo_rsp_o            ),
+      .floo_wide_i    ( floo_wide_i           ),
+      .floo_wide_o    ( floo_wide_o           ),
+      .tmrError       ( tmrError              )
+    );
+    `else
+    floo_nw_router #(
+      .AxiCfgN      ( floo_test_pkg::AxiCfgN          ),
+      .AxiCfgW      ( floo_test_pkg::AxiCfgW          ),
+      .RouteAlgo    ( floo_pkg::XYRouting             ),
+      .NumRoutes    ( floo_pkg::NumDirections         ),
+      .InFifoDepth  ( floo_test_pkg::ChannelFifoDepth ),
+      .OutFifoDepth ( floo_test_pkg::OutputFifoDepth  ),
+      .id_t         ( id_t                            ),
+      .NumAddrRules ( NumAddrRules                    ),
+      .addr_rule_t  ( addr_rule_t                     ),
+      .hdr_t        ( hdr_t                           ),
+      .floo_req_t   ( floo_req_t                      ),
+      .floo_rsp_t   ( floo_rsp_t                      ),
+      .floo_wide_t  ( floo_wide_t                     )
+    ) i_dut (
+      .clk_i          ( clk_i                 ),
+      .rst_ni         ( rst_ni                ),
+      .test_enable_i  ( 1'b0                  ),
+      .id_i           ( id_i                  ),
+      .id_route_map_i ( id_route_map_i        ),
+      .floo_req_i     ( floo_req_i            ),
+      .floo_rsp_i     ( floo_rsp_i            ),
+      .floo_req_o     ( floo_req_o            ),
+      .floo_rsp_o     ( floo_rsp_o            ),
+      .floo_wide_i    ( floo_wide_i           ),
+      .floo_wide_o    ( floo_wide_o           )
+    );
+    `endif
+  `else  // TARGET_NETLIST (baseline only — STMR netlist not supported)
+  // Synth wrapper: scalar id_route_map_i, no parameter list.
   floo_synth_nw_router i_dut (
     .clk_i          ( clk_i                 ),
     .rst_ni         ( rst_ni                ),
     .test_enable_i  ( 1'b0                  ),
     .id_i           ( id_i                  ),
-    .id_route_map_i ( 1'b0                  ),
+    .id_route_map_i ( id_route_map_i[0]     ),
     .floo_req_i     ( floo_req_i            ),
     .floo_rsp_i     ( floo_rsp_i            ),
     .floo_req_o     ( floo_req_o            ),
@@ -56,18 +195,195 @@ module floo_nw_router_dut_wrapper_ps #(
     .floo_wide_i    ( floo_wide_i           ),
     .floo_wide_o    ( floo_wide_o           )
   );
+  `endif
 
-  // No TMR in baseline — no internal or border correction
-  logic corrected_fault;
-  logic border_corrected_fault;
-  assign corrected_fault = 1'b0;
-  assign border_corrected_fault = 1'b0;
+  `ifdef TARGET_STMR
+  assign dut_error = tmrError;
+  `else
+  assign dut_error = 1'b0;
+  `endif
+  assign border_error              = 1'b0;
+  assign dut_req_replica_mismatch  = '0;
+  assign dut_rsp_replica_mismatch  = '0;
+  assign dut_wide_replica_mismatch = '0;
 
-  // End-of-simulation liveness signal for Zoix strobe
+`endif  // !HAS_TMR
+
+
+`ifdef HAS_TMR
+  // ====================================================================
+  // SHARED TMR (CTMR + FTMR)
+  // Triplicated inputs/outputs, inline border majority voters, per-replica
+  // mismatch. FTMR adds a DUT-internal error signal on top.
+  // ====================================================================
+  floo_req_t  [NumOutputs-1:0] req_oA, req_oB, req_oC;
+  floo_rsp_t  [NumInputs-1:0]  rsp_oA, rsp_oB, rsp_oC;
+  floo_wide_t [NumRoutes-1:0]  wide_oA, wide_oB, wide_oC;
+
+  `ifdef TARGET_FTMR
+  logic tmrErrorA, tmrErrorB, tmrErrorC;
+  `endif
+
+  `ifndef TARGET_NETLIST
+  floo_nw_routerTMR #(
+    .AxiCfgN      ( floo_test_pkg::AxiCfgN          ),
+    .AxiCfgW      ( floo_test_pkg::AxiCfgW          ),
+    .RouteAlgo    ( floo_pkg::XYRouting             ),
+    .NumRoutes    ( floo_pkg::NumDirections         ),
+    .InFifoDepth  ( floo_test_pkg::ChannelFifoDepth ),
+    .OutFifoDepth ( floo_test_pkg::OutputFifoDepth  ),
+    .id_t         ( id_t                            ),
+    .NumAddrRules ( NumAddrRules                    ),
+    .addr_rule_t  ( addr_rule_t                     ),
+    .hdr_t        ( hdr_t                           ),
+    .floo_req_t   ( floo_req_t                      ),
+    .floo_rsp_t   ( floo_rsp_t                      ),
+    .floo_wide_t  ( floo_wide_t                     )
+  ) i_dut (
+    .clk_iA          ( clk_i                 ),
+    .clk_iB          ( clk_i                 ),
+    .clk_iC          ( clk_i                 ),
+    .rst_niA         ( rst_ni                ),
+    .rst_niB         ( rst_ni                ),
+    .rst_niC         ( rst_ni                ),
+    .test_enable_iA  ( 1'b0                  ),
+    .test_enable_iB  ( 1'b0                  ),
+    .test_enable_iC  ( 1'b0                  ),
+    .id_iA           ( id_i                  ),
+    .id_iB           ( id_i                  ),
+    .id_iC           ( id_i                  ),
+    .id_route_map_iA ( id_route_map_i        ),
+    .id_route_map_iB ( id_route_map_i        ),
+    .id_route_map_iC ( id_route_map_i        ),
+    .floo_req_iA     ( floo_req_i            ),
+    .floo_req_iB     ( floo_req_i            ),
+    .floo_req_iC     ( floo_req_i            ),
+    .floo_rsp_iA     ( floo_rsp_i            ),
+    .floo_rsp_iB     ( floo_rsp_i            ),
+    .floo_rsp_iC     ( floo_rsp_i            ),
+    .floo_req_oA     ( req_oA                ),
+    .floo_req_oB     ( req_oB                ),
+    .floo_req_oC     ( req_oC                ),
+    .floo_rsp_oA     ( rsp_oA                ),
+    .floo_rsp_oB     ( rsp_oB                ),
+    .floo_rsp_oC     ( rsp_oC                ),
+    .floo_wide_iA    ( floo_wide_i           ),
+    .floo_wide_iB    ( floo_wide_i           ),
+    .floo_wide_iC    ( floo_wide_i           ),
+    .floo_wide_oA    ( wide_oA               ),
+    .floo_wide_oB    ( wide_oB               ),
+    .floo_wide_oC    ( wide_oC               )
+  `ifdef TARGET_FTMR
+    , .tmrErrorA       ( tmrErrorA             )
+    , .tmrErrorB       ( tmrErrorB             )
+    , .tmrErrorC       ( tmrErrorC             )
+  `endif
+  );
+  `else  // TARGET_NETLIST
+  // Synth wrapper TMR: no parameter list, scalar id_route_map_i?.
+  floo_synth_nw_routerTMR i_dut (
+    .clk_iA          ( clk_i                 ),
+    .clk_iB          ( clk_i                 ),
+    .clk_iC          ( clk_i                 ),
+    .rst_niA         ( rst_ni                ),
+    .rst_niB         ( rst_ni                ),
+    .rst_niC         ( rst_ni                ),
+    .test_enable_iA  ( 1'b0                  ),
+    .test_enable_iB  ( 1'b0                  ),
+    .test_enable_iC  ( 1'b0                  ),
+    .id_iA           ( id_i                  ),
+    .id_iB           ( id_i                  ),
+    .id_iC           ( id_i                  ),
+    .id_route_map_iA ( id_route_map_i[0]     ),
+    .id_route_map_iB ( id_route_map_i[0]     ),
+    .id_route_map_iC ( id_route_map_i[0]     ),
+    .floo_req_iA     ( floo_req_i            ),
+    .floo_req_iB     ( floo_req_i            ),
+    .floo_req_iC     ( floo_req_i            ),
+    .floo_rsp_iA     ( floo_rsp_i            ),
+    .floo_rsp_iB     ( floo_rsp_i            ),
+    .floo_rsp_iC     ( floo_rsp_i            ),
+    .floo_req_oA     ( req_oA                ),
+    .floo_req_oB     ( req_oB                ),
+    .floo_req_oC     ( req_oC                ),
+    .floo_rsp_oA     ( rsp_oA                ),
+    .floo_rsp_oB     ( rsp_oB                ),
+    .floo_rsp_oC     ( rsp_oC                ),
+    .floo_wide_iA    ( floo_wide_i           ),
+    .floo_wide_iB    ( floo_wide_i           ),
+    .floo_wide_iC    ( floo_wide_i           ),
+    .floo_wide_oA    ( wide_oA               ),
+    .floo_wide_oB    ( wide_oB               ),
+    .floo_wide_oC    ( wide_oC               )
+  `ifdef TARGET_FTMR
+    , .tmrErrorA       ( tmrErrorA             )
+    , .tmrErrorB       ( tmrErrorB             )
+    , .tmrErrorC       ( tmrErrorC             )
+  `endif
+  );
+  `endif
+
+  `ifdef TARGET_FTMR
+  assign dut_error = tmrErrorA | tmrErrorB | tmrErrorC;
+  `else
+  assign dut_error = 1'b0;
+  `endif
+
+  // Inline border majority voters. The 2-pair (A!=B)|(B!=C) error check is
+  // logically equivalent to the 3-pair XOR-reduce by transitivity.
+  logic [NumOutputs-1:0] req_vote_err;
+  logic [NumInputs-1:0]  rsp_vote_err;
+  logic [NumRoutes-1:0]  wide_vote_err;
+
+  for (genvar i = 0; i < NumOutputs; i++) begin : g_req_vote
+    assign floo_req_o[i] = (req_oA[i] & req_oB[i])
+                         | (req_oA[i] & req_oC[i])
+                         | (req_oB[i] & req_oC[i]);
+    assign req_vote_err[i]             = (req_oA[i] != req_oB[i])
+                                       | (req_oB[i] != req_oC[i]);
+    assign dut_req_replica_mismatch[i] = req_vote_err[i];
+  end
+
+  for (genvar i = 0; i < NumInputs; i++) begin : g_rsp_vote
+    assign floo_rsp_o[i] = (rsp_oA[i] & rsp_oB[i])
+                         | (rsp_oA[i] & rsp_oC[i])
+                         | (rsp_oB[i] & rsp_oC[i]);
+    assign rsp_vote_err[i]             = (rsp_oA[i] != rsp_oB[i])
+                                       | (rsp_oB[i] != rsp_oC[i]);
+    assign dut_rsp_replica_mismatch[i] = rsp_vote_err[i];
+  end
+
+  for (genvar i = 0; i < NumRoutes; i++) begin : g_wide_vote
+    assign floo_wide_o[i] = (wide_oA[i] & wide_oB[i])
+                          | (wide_oA[i] & wide_oC[i])
+                          | (wide_oB[i] & wide_oC[i]);
+    assign wide_vote_err[i]             = (wide_oA[i] != wide_oB[i])
+                                        | (wide_oB[i] != wide_oC[i]);
+    assign dut_wide_replica_mismatch[i] = wide_vote_err[i];
+  end
+
+  assign border_error = |req_vote_err | |rsp_vote_err | |wide_vote_err;
+
+`endif  // HAS_TMR
+
+
+  // --------------------------------------------------------------------
+  // Aggregate replica-mismatch signal consumed by strobe.sv
+  // --------------------------------------------------------------------
+  logic replica_mismatch_any;
+  assign replica_mismatch_any = |dut_req_replica_mismatch
+                              | |dut_rsp_replica_mismatch
+                              | |dut_wide_replica_mismatch;
+
+  // --------------------------------------------------------------------
+  // End-of-simulation liveness signal for the strobe.
+  // --------------------------------------------------------------------
   logic end_of_sim;
   assign end_of_sim = &end_of_sim_endpoints && end_of_sim_monitor;
 
+  // --------------------------------------------------------------------
   // Flattened output signals for Zoix $fs_compare
+  // --------------------------------------------------------------------
   localparam int FlooReqBits  = $bits(floo_req_t);
   localparam int FlooRspBits  = $bits(floo_rsp_t);
   localparam int FlooWideBits = $bits(floo_wide_t);
@@ -87,8 +403,11 @@ module floo_nw_router_dut_wrapper_ps #(
 endmodule
 
 
-/// Post-synthesis testbench for floo_nw_router:
-module tb_floo_nw_router_ps;
+// =========================================================================
+// Outer testbench. Mirrors tb_floo_nw_router.sv line-for-line except for
+// the wrapper instance module name.
+// =========================================================================
+module tb_floo_nw_router_fi;
 
   import floo_pkg::*;
 
@@ -105,50 +424,29 @@ module tb_floo_nw_router_ps;
 
   logic clk, rst_n;
 
-  // -----------------------------------------------------------------------
-  //  NW Chimney configs
-  // -----------------------------------------------------------------------
   localparam chimney_cfg_t NarrowChimneyCfg = ChimneyDefaultCfg;
   localparam chimney_cfg_t WideChimneyCfg = ChimneyDefaultCfg;
 
-  // -----------------------------------------------------------------------
-  //  ID / Header types
-  // -----------------------------------------------------------------------
   typedef logic [1:0] x_bits_t;
   typedef logic [1:0] y_bits_t;
   `FLOO_TYPEDEF_XY_NODE_ID_T(id_t, x_bits_t, y_bits_t, logic)
   `FLOO_TYPEDEF_HDR_T(hdr_t, id_t, id_t, nw_ch_e, logic)
 
-  // -----------------------------------------------------------------------
-  //  AXI types derived from test package configs
-  // -----------------------------------------------------------------------
   `FLOO_TYPEDEF_AXI_FROM_CFG(axi_narrow, floo_test_pkg::AxiCfgN)
   `FLOO_TYPEDEF_AXI_FROM_CFG(axi_wide,   floo_test_pkg::AxiCfgW)
   `FLOO_TYPEDEF_NW_CHAN_ALL(axi, req, rsp, wide, axi_narrow_in, axi_wide_in,
       floo_test_pkg::AxiCfgN, floo_test_pkg::AxiCfgW, hdr_t)
   `FLOO_TYPEDEF_NW_LINK_ALL(req, rsp, wide, req, rsp, wide)
 
-  // -----------------------------------------------------------------------
-  //  AXI bus signals  (one per direction)
-  // -----------------------------------------------------------------------
-
-  // Narrow: manager side (into chimney)
   axi_narrow_in_req_t  chimney_narrow_in_req;
   axi_narrow_in_rsp_t  chimney_narrow_in_rsp;
-  // Narrow: subordinate side (out of chimney)
   axi_narrow_out_req_t chimney_narrow_out_req;
   axi_narrow_out_rsp_t chimney_narrow_out_rsp;
 
-  // Wide: manager side
   axi_wide_in_req_t    chimney_wide_in_req;
   axi_wide_in_rsp_t    chimney_wide_in_rsp;
-  // Wide: subordinate side
   axi_wide_out_req_t   chimney_wide_out_req;
   axi_wide_out_rsp_t   chimney_wide_out_rsp;
-
-  // -----------------------------------------------------------------------
-  //  Floo link signals
-  // -----------------------------------------------------------------------
 
   floo_req_t [3-1:0][3-1:0][Eject:North] floo_req_in, floo_req_out;
   floo_rsp_t [3-1:0][3-1:0][Eject:North] floo_rsp_in, floo_rsp_out;
@@ -167,9 +465,6 @@ module tb_floo_nw_router_ps;
 
   logic mesh_end_of_sim;
 
-  // -----------------------------------------------------------------------
-  //  Clock / reset
-  // -----------------------------------------------------------------------
   logic [NumEndpoints-1:0][1:0] end_of_sim_endpoints;
 
   for (genvar x = 0; x < 3; x++) begin : gen_eject_slice_x
@@ -219,9 +514,6 @@ module tb_floo_nw_router_ps;
     .rst_no ( rst_n )
   );
 
-  // -----------------------------------------------------------------------
-  //  Address regions for the traffic-generator
-  // -----------------------------------------------------------------------
   typedef struct packed {
     int unsigned  idx;
     axi_narrow_addr_t start_addr;
@@ -271,10 +563,6 @@ module tb_floo_nw_router_ps;
     '{idx: East,  start_addr: 48'h00120000, end_addr: 48'h0012FFFF},
     '{idx: North, start_addr: 48'h00210000, end_addr: 48'h0021FFFF}
   };
-
-  /////////////////////////
-  //  Peripheral Nodes   //
-  /////////////////////////
 
   // NESW Endpoint Tiles
   floo_nw_tile #(
@@ -484,9 +772,6 @@ module tb_floo_nw_router_ps;
     end
   end
 
-  // -----------------------------------------------------------------------
-  //  NW Router (DUT) — post-synthesis
-  // -----------------------------------------------------------------------
   floo_axi_test_node #(
     .DELAY ( 0 ),
     .AxiCfg         ( floo_test_pkg::AxiCfgN  ),
@@ -579,9 +864,8 @@ module tb_floo_nw_router_ps;
     .floo_wide_i          ( floo_wide_out[1][1][Eject]    )
   );
 
-  floo_nw_router_dut_wrapper_ps #(
+  floo_nw_router_fi_dut_wrapper #(
     .id_t ( id_t ),
-    .addr_rule_t ( node_addr_region_t ),
     .hdr_t ( hdr_t ),
     .floo_req_t ( floo_req_t ),
     .floo_rsp_t ( floo_rsp_t ),
@@ -630,9 +914,6 @@ module tb_floo_nw_router_ps;
       .end_of_sim_o  ( mesh_end_of_sim    )
     );
 
-  // -----------------------------------------------------------------------
-  // Connection of noc links
-  // -----------------------------------------------------------------------
   for (genvar x = 0; x < 3; x++) begin
     for (genvar y = 0; y < 3; y++) begin
       if (x != 0) begin
@@ -678,9 +959,6 @@ module tb_floo_nw_router_ps;
     end
   end
 
-  // -----------------------------------------------------------------------
-  //  Simulation end
-  // -----------------------------------------------------------------------
   initial begin
     $timeformat(-9, 2, " ns", 20);
     wait(&end_of_sim_endpoints && mesh_end_of_sim);

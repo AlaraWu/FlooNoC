@@ -566,7 +566,7 @@ majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1
     .out(past_handshakes_qVotedA),
     .tmrErr(past_handshakes_qTmrErrorA)
   );
-assign tmrErrorA = (|i_output_arbitertmrErrorA)|(|i_route_selecttmrErrorA)|(|i_stream_fifotmrErrorA)|(|i_vc_arbitertmrErrorA)|(|i_wormhole_arbitertmrErrorA)|past_handshakes_qTmrErrorA;
+assign tmrErrorA = (|i_output_arbitertmrErrorA)|(|i_route_selecttmrErrorA)|(|i_stream_fifotmrErrorA)|(|i_stream_fifo2tmrErrorA)|(|i_vc_arbitertmrErrorA)|(|i_wormhole_arbitertmrErrorA)|past_handshakes_qTmrErrorA;
 
 majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterB (
     .inA(past_handshakes_qA),
@@ -575,7 +575,7 @@ majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1
     .out(past_handshakes_qVotedB),
     .tmrErr(past_handshakes_qTmrErrorB)
   );
-assign tmrErrorB = (|i_output_arbitertmrErrorB)|(|i_route_selecttmrErrorB)|(|i_stream_fifotmrErrorB)|(|i_vc_arbitertmrErrorB)|(|i_wormhole_arbitertmrErrorB)|past_handshakes_qTmrErrorB;
+assign tmrErrorB = (|i_output_arbitertmrErrorB)|(|i_route_selecttmrErrorB)|(|i_stream_fifotmrErrorB)|(|i_stream_fifo2tmrErrorB)|(|i_vc_arbitertmrErrorB)|(|i_wormhole_arbitertmrErrorB)|past_handshakes_qTmrErrorB;
 
 majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterC (
     .inA(past_handshakes_qA),
@@ -584,6 +584,6 @@ majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1
     .out(past_handshakes_qVotedC),
     .tmrErr(past_handshakes_qTmrErrorC)
   );
-assign tmrErrorC = (|i_output_arbitertmrErrorC)|(|i_route_selecttmrErrorC)|(|i_stream_fifotmrErrorC)|(|i_vc_arbitertmrErrorC)|(|i_wormhole_arbitertmrErrorC)|past_handshakes_qTmrErrorC;
+assign tmrErrorC = (|i_output_arbitertmrErrorC)|(|i_route_selecttmrErrorC)|(|i_stream_fifotmrErrorC)|(|i_stream_fifo2tmrErrorC)|(|i_vc_arbitertmrErrorC)|(|i_wormhole_arbitertmrErrorC)|past_handshakes_qTmrErrorC;
 endmodule
 

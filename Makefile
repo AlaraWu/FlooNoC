@@ -34,16 +34,23 @@ BENDER_FLAGS += -t test
 BENDER_FLAGS += -t floo_test
 BENDER_FLAGS += -t snitch_cluster
 BENDER_FLAGS += -t idma_test
-ifdef TMR
-    BENDER_FLAGS += -t tmrg
+# TMR mode selection: TMR=full → -t ftmr, TMR=coarse → -t ctmr
+ifeq ($(TMR),full)
+    BENDER_FLAGS += -t ftmr
+endif
+ifeq ($(TMR),coarse)
+    BENDER_FLAGS += -t ctmr
 endif
 BENDER_FLAGS := $(BENDER_FLAGS) $(EXTRA_BENDER_FLAGS)
 
 WORK 	 		?= work
 TB_DUT 		?= floo_noc_router_test
 
+# When TB_DUT ends in TMR and no explicit mode was requested, default to full.
+ifeq ($(TMR),)
 ifneq (,$(filter %TMR,$(TB_DUT)))
-	BENDER_FLAGS += -t tmrg
+	BENDER_FLAGS += -t ftmr
+endif
 endif
 
 ######################

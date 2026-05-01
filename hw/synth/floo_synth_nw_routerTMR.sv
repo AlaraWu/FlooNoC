@@ -45,11 +45,12 @@ module floo_synth_nw_routerTMR
   input  floo_wide_t [NumPorts-1:0] floo_wide_iC,
   output floo_wide_t [NumPorts-1:0] floo_wide_oA,
   output floo_wide_t [NumPorts-1:0] floo_wide_oB,
-  output floo_wide_t [NumPorts-1:0] floo_wide_oC,
-
-  output logic tmrErrorA,
-  output logic tmrErrorB,
-  output logic tmrErrorC
+  output floo_wide_t [NumPorts-1:0] floo_wide_oC
+  `ifdef TARGET_FTMR
+    , .tmrErrorA       ( tmrErrorA             )
+    , .tmrErrorB       ( tmrErrorB             )
+    , .tmrErrorC       ( tmrErrorC             )
+  `endif
 );
 
   floo_nw_routerTMR #(
@@ -99,10 +100,12 @@ module floo_synth_nw_routerTMR
     .floo_wide_iC    ( floo_wide_iC     ),
     .floo_wide_oA    ( floo_wide_oA     ),
     .floo_wide_oB    ( floo_wide_oB     ),
-    .floo_wide_oC    ( floo_wide_oC     ),
-    .tmrErrorA (tmrErrorA),
-    .tmrErrorB (tmrErrorB),
-    .tmrErrorC (tmrErrorC)
+    .floo_wide_oC    ( floo_wide_oC     )
+  `ifdef TARGET_FTMR
+    , .tmrErrorA       ( tmrErrorA             )
+    , .tmrErrorB       ( tmrErrorB             )
+    , .tmrErrorC       ( tmrErrorC             )
+  `endif
   );
 
 endmodule
