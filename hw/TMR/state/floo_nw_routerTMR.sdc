@@ -208,10 +208,6 @@ constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qA
 constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qB[*]
 constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qC[*]
 constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_q[*]
-constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrError
-constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorA
-constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorB
-constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorC
 constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nA[*]
 constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nB[*]
 constrainNet /i_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nC[*]
@@ -504,10 +500,6 @@ constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qA
 constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qB[*]
 constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qC[*]
 constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_q[*]
-constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrError
-constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorA
-constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorB
-constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorC
 constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nA[*]
 constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nB[*]
 constrainNet /i_rsp_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nC[*]
@@ -800,10 +792,6 @@ constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_c
 constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qB[*]
 constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_qC[*]
 constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/status_cnt_q[*]
-constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrError
-constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorA
-constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorB
-constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/tmrErrorC
 constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nA[*]
 constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nB[*]
 constrainNet /i_wide_req_floo_router/i_stream_fifo/i_stream_fifo/fifo_i/write_pointer_nC[*]

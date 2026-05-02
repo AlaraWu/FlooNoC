@@ -58,9 +58,6 @@ localparam int unsigned FifoDepth = (DEPTH>0) ? DEPTH : 1;
 wire [ (ADDR_DEPTH-1) :0] write_pointer_nC;
 wire [ (ADDR_DEPTH-1) :0] write_pointer_nB;
 wire [ (ADDR_DEPTH-1) :0] write_pointer_nA;
-wire tmrErrorC;
-wire tmrErrorB;
-wire tmrErrorA;
 wire [ (ADDR_DEPTH) :0] status_cnt_nC;
 wire [ (ADDR_DEPTH) :0] status_cnt_nB;
 wire [ (ADDR_DEPTH) :0] status_cnt_nA;
@@ -241,7 +238,7 @@ always_ff @( posedge clk_iA or negedge rst_niA )
         mem_qA <= {FifoDepth{dtype' ('0) }};
       end
     else
-      if (!gate_clockA||tmrErrorA)
+      if (!gate_clockA||mem_qTmrError)
         begin
           mem_qA <= mem_nA;
         end
@@ -255,7 +252,7 @@ always_ff @( posedge clk_iB or negedge rst_niB )
         mem_qB <= {FifoDepth{dtype' ('0) }};
       end
     else
-      if (!gate_clockB||tmrErrorB)
+      if (!gate_clockB||mem_qTmrError)
         begin
           mem_qB <= mem_nB;
         end
@@ -269,7 +266,7 @@ always_ff @( posedge clk_iC or negedge rst_niC )
         mem_qC <= {FifoDepth{dtype' ('0) }};
       end
     else
-      if (!gate_clockC||tmrErrorC)
+      if (!gate_clockC||mem_qTmrError)
         begin
           mem_qC <= mem_nC;
         end
@@ -342,13 +339,6 @@ fanout #(.WIDTH( ((((ADDR_DEPTH)>0) ? (ADDR_DEPTH) : - ( ADDR_DEPTH ) )+1) )) st
     .outA(status_cnt_nA),
     .outB(status_cnt_nB),
     .outC(status_cnt_nC)
-  );
-
-fanout tmrErrorFanout (
-    .in(tmrError),
-    .outA(tmrErrorA),
-    .outB(tmrErrorB),
-    .outC(tmrErrorC)
   );
 
 fanout #(.WIDTH( ((((ADDR_DEPTH-1)>0) ? (ADDR_DEPTH-1) : - ( ADDR_DEPTH-1 ) )+1) )) write_pointer_nFanout (

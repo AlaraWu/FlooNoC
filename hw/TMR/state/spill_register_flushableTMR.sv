@@ -106,10 +106,10 @@ if (Bypass)
 
 else
   begin : gen_spill_reg
-    wire a_data_en = a_fill|tmrError;
-    wire a_full_en = a_fill|a_drain|tmrError;
-    wire b_data_en = b_fill|tmrError;
-    wire b_full_en = b_fill|b_drain|tmrError;
+    wire a_data_en = a_fill|a_data_qTmrError;
+    wire a_full_en = a_fill|a_drain|a_full_qTmrError;
+    wire b_data_en = b_fill|b_data_qTmrError;
+    wire b_full_en = b_fill|b_drain|b_full_qTmrError;
 T a_data_n;
     assign a_data_n = a_fill ? data_i : a_data_q;
 logic a_full_n;
