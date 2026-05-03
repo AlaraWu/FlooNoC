@@ -292,9 +292,19 @@ for(genvar in = 0; in<NumInput; in++)
                 assign masked_ready_transposedA[in][v][out] = masked_readyA[out][v][in];
                 assign masked_ready_transposedB[in][v][out] = masked_readyB[out][v][in];
                 assign masked_ready_transposedC[in][v][out] = masked_readyC[out][v][in];
-                assign masked_validA[out][v][in] = in_validA[in][v]&route_maskA[in][v][out]& (! EnMultiCast || ~ past_handshakes_qVotedA[in][v][out] ) ;
-                assign masked_validB[out][v][in] = in_validB[in][v]&route_maskB[in][v][out]& (! EnMultiCast || ~ past_handshakes_qVotedB[in][v][out] ) ;
-                assign masked_validC[out][v][in] = in_validC[in][v]&route_maskC[in][v][out]& (! EnMultiCast || ~ past_handshakes_qVotedC[in][v][out] ) ;
+                if (EnMultiCast)
+                                  begin
+                    assign masked_validA[out][v][in] = in_validA[in][v]&route_maskA[in][v][out]&~past_handshakes_qVotedA[in][v][out];
+                    assign masked_validB[out][v][in] = in_validB[in][v]&route_maskB[in][v][out]&~past_handshakes_qVotedB[in][v][out];
+                    assign masked_validC[out][v][in] = in_validC[in][v]&route_maskC[in][v][out]&~past_handshakes_qVotedC[in][v][out];
+                  end
+
+                else
+                                  begin
+                    assign masked_validA[out][v][in] = in_validA[in][v]&route_maskA[in][v][out];
+                    assign masked_validB[out][v][in] = in_validB[in][v]&route_maskB[in][v][out];
+                    assign masked_validC[out][v][in] = in_validC[in][v]&route_maskC[in][v][out];
+                  end
                 assign masked_dataA[out][v][in] = in_routed_dataA[in][v];
                 assign masked_dataB[out][v][in] = in_routed_dataB[in][v];
                 assign masked_dataC[out][v][in] = in_routed_dataC[in][v];
@@ -333,41 +343,74 @@ for(genvar in = 0; in<NumInput; in++)
           end
       end
   end
+if (EnMultiCast)
+  begin : gen_mcast_pasthandshake
 
-always_ff @( posedge clk_iA or negedge rst_niA )
-  begin
-    if (!rst_niA)
+    always_ff @( posedge clk_iA or negedge rst_niA )
       begin
-        past_handshakes_qA <= '0;
+        if (!rst_niA)
+          begin
+            past_handshakes_qA <= '0;
+          end
+        else
+          begin
+            past_handshakes_qA <= past_handshakes_dA;
+          end
       end
-    else
+
+    always_ff @( posedge clk_iB or negedge rst_niB )
       begin
-        past_handshakes_qA <= past_handshakes_dA;
+        if (!rst_niB)
+          begin
+            past_handshakes_qB <= '0;
+          end
+        else
+          begin
+            past_handshakes_qB <= past_handshakes_dB;
+          end
       end
+
+    always_ff @( posedge clk_iC or negedge rst_niC )
+      begin
+        if (!rst_niC)
+          begin
+            past_handshakes_qC <= '0;
+          end
+        else
+          begin
+            past_handshakes_qC <= past_handshakes_dC;
+          end
+      end
+
+    majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterA (
+        .inA(past_handshakes_qA),
+        .inB(past_handshakes_qB),
+        .inC(past_handshakes_qC),
+        .out(past_handshakes_qVotedA),
+        .tmrErr(past_handshakes_qTmrErrorA)
+      );
+
+    majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterB (
+        .inA(past_handshakes_qA),
+        .inB(past_handshakes_qB),
+        .inC(past_handshakes_qC),
+        .out(past_handshakes_qVotedB),
+        .tmrErr(past_handshakes_qTmrErrorB)
+      );
+
+    majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterC (
+        .inA(past_handshakes_qA),
+        .inB(past_handshakes_qB),
+        .inC(past_handshakes_qC),
+        .out(past_handshakes_qVotedC),
+        .tmrErr(past_handshakes_qTmrErrorC)
+      );
   end
-
-always_ff @( posedge clk_iB or negedge rst_niB )
-  begin
-    if (!rst_niB)
-      begin
-        past_handshakes_qB <= '0;
-      end
-    else
-      begin
-        past_handshakes_qB <= past_handshakes_dB;
-      end
-  end
-
-always_ff @( posedge clk_iC or negedge rst_niC )
-  begin
-    if (!rst_niC)
-      begin
-        past_handshakes_qC <= '0;
-      end
-    else
-      begin
-        past_handshakes_qC <= past_handshakes_dC;
-      end
+else
+  begin : gen_no_mcast
+    assign past_handshakes_qTmrErrorA = 1'b0;
+    assign past_handshakes_qTmrErrorB = 1'b0;
+    assign past_handshakes_qTmrErrorC = 1'b0;
   end
 flit_t [NumOutput - 1:0] [NumVirtChannels - 1:0] out_dataA;
 flit_t [NumOutput - 1:0] [NumVirtChannels - 1:0] out_dataB;
@@ -561,31 +604,8 @@ for(genvar out = 0; out<NumOutput; out++)
       );
   end
 
-majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterA (
-    .inA(past_handshakes_qA),
-    .inB(past_handshakes_qB),
-    .inC(past_handshakes_qC),
-    .out(past_handshakes_qVotedA),
-    .tmrErr(past_handshakes_qTmrErrorA)
-  );
 assign tmrErrorA = (|i_output_arbitertmrErrorA)|(|i_route_selecttmrErrorA)|(|i_stream_fifotmrErrorA)|(|i_stream_fifo2tmrErrorA)|(|i_vc_arbitertmrErrorA)|(|i_wormhole_arbitertmrErrorA)|past_handshakes_qTmrErrorA;
-
-majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterB (
-    .inA(past_handshakes_qA),
-    .inB(past_handshakes_qB),
-    .inC(past_handshakes_qC),
-    .out(past_handshakes_qVotedB),
-    .tmrErr(past_handshakes_qTmrErrorB)
-  );
 assign tmrErrorB = (|i_output_arbitertmrErrorB)|(|i_route_selecttmrErrorB)|(|i_stream_fifotmrErrorB)|(|i_stream_fifo2tmrErrorB)|(|i_vc_arbitertmrErrorB)|(|i_wormhole_arbitertmrErrorB)|past_handshakes_qTmrErrorB;
-
-majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoterC (
-    .inA(past_handshakes_qA),
-    .inB(past_handshakes_qB),
-    .inC(past_handshakes_qC),
-    .out(past_handshakes_qVotedC),
-    .tmrErr(past_handshakes_qTmrErrorC)
-  );
 assign tmrErrorC = (|i_output_arbitertmrErrorC)|(|i_route_selecttmrErrorC)|(|i_stream_fifotmrErrorC)|(|i_stream_fifo2tmrErrorC)|(|i_vc_arbitertmrErrorC)|(|i_wormhole_arbitertmrErrorC)|past_handshakes_qTmrErrorC;
 endmodule
 

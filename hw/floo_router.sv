@@ -155,8 +155,13 @@ module floo_router
           assign masked_data[out][v][in]      = '0;
         end else begin : gen_conn
           assign masked_ready_transposed[in][v][out] = masked_ready[out][v][in];
-          assign masked_valid[out][v][in]     = in_valid[in][v] & route_mask[in][v][out] &
-                                                (!EnMultiCast || ~past_handshakes_q[in][v][out]);
+          if (EnMultiCast) begin
+            assign masked_valid[out][v][in]     = in_valid[in][v] & route_mask[in][v][out] &
+                                                ~past_handshakes_q[in][v][out];
+          end
+          else begin
+            assign masked_valid[out][v][in]     = in_valid[in][v] & route_mask[in][v][out];
+          end
           assign masked_data[out][v][in]      = in_routed_data[in][v];
         end
         assign masked_valid_transposed[in][v][out] = masked_valid[out][v][in];
@@ -188,7 +193,9 @@ module floo_router
     end
   end
 
-  `FF(past_handshakes_q, past_handshakes_d, '0)
+  if (EnMultiCast) begin: gen_mcast_pasthandshake
+    `FF(past_handshakes_q, past_handshakes_d, '0)
+  end
 
   flit_t [NumOutput-1:0][NumVirtChannels-1:0] out_data, out_buffered_data;
   logic  [NumOutput-1:0][NumVirtChannels-1:0] out_valid, out_ready;

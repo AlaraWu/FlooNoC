@@ -100,3 +100,6 @@ reviewdog
 
 # Physical design repository
 pd
+
+# fault injection
+floonoc_zoix

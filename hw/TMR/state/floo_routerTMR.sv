@@ -6,7 +6,7 @@
  *                                                                                                  *
  * user    : chenwu                                                                                 *
  * host    : badwater.ee.ethz.ch                                                                    *
- * date    : 01/05/2026 01:55:50                                                                    *
+ * date    : 01/05/2026 19:41:49                                                                    *
  *                                                                                                  *
  * workdir : /scratch/chenwu/relnoc/tmrg_floonoc                                                    *
  * cmd     : /scratch/chenwu/tmrg/venv/bin/tmrg state/tmrg_src/floo_nw_router.sv                    *
@@ -177,7 +177,15 @@ for(genvar in = 0; in<NumInput; in++)
             else
                           begin : gen_conn
                 assign masked_ready_transposed[in][v][out] = masked_ready[out][v][in];
-                assign masked_valid[out][v][in] = in_valid[in][v]&route_mask[in][v][out]& (! EnMultiCast || ~ past_handshakes_q[in][v][out] ) ;
+                if (EnMultiCast)
+                                  begin
+                    assign masked_valid[out][v][in] = in_valid[in][v]&route_mask[in][v][out]&~past_handshakes_q[in][v][out];
+                  end
+
+                else
+                                  begin
+                    assign masked_valid[out][v][in] = in_valid[in][v]&route_mask[in][v][out];
+                  end
                 assign masked_data[out][v][in] = in_routed_data[in][v];
               end
             assign masked_valid_transposed[in][v][out] = masked_valid[out][v][in];
@@ -198,29 +206,44 @@ for(genvar in = 0; in<NumInput; in++)
           end
       end
   end
+if (EnMultiCast)
+  begin : gen_mcast_pasthandshake
 
-always_ff @( posedge clk_iA or negedge rst_niA )
-  begin : ps_past_handshakes_qA
-    if (!rst_niA)
-      past_handshakes_qA <= '0;
-    else
-      past_handshakes_qA <= past_handshakes_dA;
+    always_ff @( posedge clk_iA or negedge rst_niA )
+      begin : ps_past_handshakes_qA
+        if (!rst_niA)
+          past_handshakes_qA <= '0;
+        else
+          past_handshakes_qA <= past_handshakes_dA;
+      end
+
+    always_ff @( posedge clk_iB or negedge rst_niB )
+      begin : ps_past_handshakes_qB
+        if (!rst_niB)
+          past_handshakes_qB <= '0;
+        else
+          past_handshakes_qB <= past_handshakes_dB;
+      end
+
+    always_ff @( posedge clk_iC or negedge rst_niC )
+      begin : ps_past_handshakes_qC
+        if (!rst_niC)
+          past_handshakes_qC <= '0;
+        else
+          past_handshakes_qC <= past_handshakes_dC;
+      end
+
+    majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoter (
+        .inA(past_handshakes_qA),
+        .inB(past_handshakes_qB),
+        .inC(past_handshakes_qC),
+        .out(past_handshakes_q),
+        .tmrErr(past_handshakes_qTmrError)
+      );
   end
-
-always_ff @( posedge clk_iB or negedge rst_niB )
-  begin : ps_past_handshakes_qB
-    if (!rst_niB)
-      past_handshakes_qB <= '0;
-    else
-      past_handshakes_qB <= past_handshakes_dB;
-  end
-
-always_ff @( posedge clk_iC or negedge rst_niC )
-  begin : ps_past_handshakes_qC
-    if (!rst_niC)
-      past_handshakes_qC <= '0;
-    else
-      past_handshakes_qC <= past_handshakes_dC;
+else
+  begin : gen_no_mcast
+    assign past_handshakes_qTmrError = 1'b0;
   end
 flit_t [NumOutput - 1:0] [NumVirtChannels - 1:0] out_data;
 flit_t [NumOutput - 1:0] [NumVirtChannels - 1:0] out_buffered_data;
@@ -320,13 +343,6 @@ for(genvar out = 0; out<NumOutput; out++)
       );
   end
 
-majorityVoter #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_qVoter (
-    .inA(past_handshakes_qA),
-    .inB(past_handshakes_qB),
-    .inC(past_handshakes_qC),
-    .out(past_handshakes_q),
-    .tmrErr(past_handshakes_qTmrError)
-  );
 assign tmrError = past_handshakes_qTmrError | i_output_arbitertmrError|i_route_selecttmrError|i_stream_fifotmrError|i_vc_arbitertmrError|i_wormhole_arbitertmrError;
 
 fanout #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_dFanout (

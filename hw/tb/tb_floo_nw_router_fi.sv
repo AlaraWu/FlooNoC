@@ -36,14 +36,23 @@
 `include "axi/assign.svh"
 `include "floo_noc/typedef.svh"
 
-// --------------------------------------------------------------------------
-// HAS_TMR: any TMR config (CTMR or FTMR)
-// --------------------------------------------------------------------------
+// HAS_TMR: any TMR scheme (STMR, CTMR, or FTMR)
+`ifdef TARGET_STMR
+  `define HAS_TMR
+`endif
 `ifdef TARGET_CTMR
   `define HAS_TMR
 `endif
 `ifdef TARGET_FTMR
   `define HAS_TMR
+`endif
+
+// FLIT_TMR: flit triplicated and thus need border voters (CTMR or FTMR)
+`ifdef TARGET_CTMR
+  `define FLIT_TMR
+`endif
+`ifdef TARGET_FTMR
+  `define FLIT_TMR
 `endif
 
 // --------------------------------------------------------------------------
@@ -106,53 +115,31 @@ module floo_nw_router_fi_dut_wrapper #(
   logic [NumInputs-1:0]  dut_rsp_replica_mismatch;
   logic [NumRoutes-1:0]  dut_wide_replica_mismatch;
 
-`ifndef HAS_TMR
   // ====================================================================
   // BASELINE / STMR
   // Single-copy I/O. TARGET_STMR swaps the module to floo_nw_routerTMR
   // (state-only TMR) which keeps the same port list but exports a single
   // combined tmrError voter-error output.
   // ====================================================================
-  `ifdef TARGET_STMR
+
+  `ifdef TARGET_FTMR
+  logic tmrErrorA, tmrErrorB, tmrErrorC;
+  `elsif TARGET_STMR
   logic tmrError;
   `endif
 
+  `ifdef FLIT_TMR
+    floo_req_t  [NumOutputs-1:0] req_oA, req_oB, req_oC;
+    floo_rsp_t  [NumInputs-1:0]  rsp_oA, rsp_oB, rsp_oC;
+    floo_wide_t [NumRoutes-1:0]  wide_oA, wide_oB, wide_oC;
+  `endif
+
   `ifndef TARGET_NETLIST
-    `ifdef TARGET_STMR
+    `ifdef HAS_TMR
     floo_nw_routerTMR #(
-      .AxiCfgN      ( floo_test_pkg::AxiCfgN          ),
-      .AxiCfgW      ( floo_test_pkg::AxiCfgW          ),
-      .RouteAlgo    ( floo_pkg::XYRouting             ),
-      .NumRoutes    ( floo_pkg::NumDirections         ),
-      .InFifoDepth  ( floo_test_pkg::ChannelFifoDepth ),
-      .OutFifoDepth ( floo_test_pkg::OutputFifoDepth  ),
-      .id_t         ( id_t                            ),
-      .NumAddrRules ( NumAddrRules                    ),
-      .addr_rule_t  ( addr_rule_t                     ),
-      .hdr_t        ( hdr_t                           ),
-      .floo_req_t   ( floo_req_t                      ),
-      .floo_rsp_t   ( floo_rsp_t                      ),
-      .floo_wide_t  ( floo_wide_t                     )
-    ) i_dut (
-      .clk_iA         ( clk_i                 ),
-      .clk_iB         ( clk_i                 ),
-      .clk_iC         ( clk_i                 ),
-      .rst_niA        ( rst_ni                ),
-      .rst_niB        ( rst_ni                ),
-      .rst_niC        ( rst_ni                ),
-      .test_enable_i  ( 1'b0                  ),
-      .id_i           ( id_i                  ),
-      .id_route_map_i ( id_route_map_i        ),
-      .floo_req_i     ( floo_req_i            ),
-      .floo_rsp_i     ( floo_rsp_i            ),
-      .floo_req_o     ( floo_req_o            ),
-      .floo_rsp_o     ( floo_rsp_o            ),
-      .floo_wide_i    ( floo_wide_i           ),
-      .floo_wide_o    ( floo_wide_o           ),
-      .tmrError       ( tmrError              )
-    );
     `else
     floo_nw_router #(
+    `endif
       .AxiCfgN      ( floo_test_pkg::AxiCfgN          ),
       .AxiCfgW      ( floo_test_pkg::AxiCfgW          ),
       .RouteAlgo    ( floo_pkg::XYRouting             ),
@@ -167,11 +154,76 @@ module floo_nw_router_fi_dut_wrapper #(
       .floo_rsp_t   ( floo_rsp_t                      ),
       .floo_wide_t  ( floo_wide_t                     )
     ) i_dut (
+      `ifdef HAS_TMR // triplicated clk and rst
+        .clk_iA         ( clk_i                 ),
+        .clk_iB         ( clk_i                 ),
+        .clk_iC         ( clk_i                 ),
+        .rst_niA        ( rst_ni                ),
+        .rst_niB        ( rst_ni                ),
+        .rst_niC        ( rst_ni                ),
+      `else // baseline: single clock and reset
+        .clk_i           ( clk_i                 ),
+        .rst_ni          ( rst_ni                ),
+      `endif // HAS_TMR
+
+      `ifdef FLIT_TMR // CTMR and FTMR: triplicated other ports
+        .test_enable_iA  ( 1'b0                  ),
+        .test_enable_iB  ( 1'b0                  ),
+        .test_enable_iC  ( 1'b0                  ),
+        .id_iA           ( id_i                  ),
+        .id_iB           ( id_i                  ),
+        .id_iC           ( id_i                  ),
+        .id_route_map_iA ( id_route_map_i        ),
+        .id_route_map_iB ( id_route_map_i        ),
+        .id_route_map_iC ( id_route_map_i        ),
+        .floo_req_iA     ( floo_req_i            ),
+        .floo_req_iB     ( floo_req_i            ),
+        .floo_req_iC     ( floo_req_i            ),
+        .floo_rsp_iA     ( floo_rsp_i            ),
+        .floo_rsp_iB     ( floo_rsp_i            ),
+        .floo_rsp_iC     ( floo_rsp_i            ),
+        .floo_req_oA     ( req_oA                ),
+        .floo_req_oB     ( req_oB                ),
+        .floo_req_oC     ( req_oC                ),
+        .floo_rsp_oA     ( rsp_oA                ),
+        .floo_rsp_oB     ( rsp_oB                ),
+        .floo_rsp_oC     ( rsp_oC                ),
+        .floo_wide_iA    ( floo_wide_i           ),
+        .floo_wide_iB    ( floo_wide_i           ),
+        .floo_wide_iC    ( floo_wide_i           ),
+        .floo_wide_oA    ( wide_oA               ),
+        .floo_wide_oB    ( wide_oB               ),
+        .floo_wide_oC    ( wide_oC               )
+      `else // baseline and STMR: single-copy ports
+        .test_enable_i  ( 1'b0                  ),
+        .id_i           ( id_i                  ),
+        .id_route_map_i ( id_route_map_i        ),
+        .floo_req_i     ( floo_req_i            ),
+        .floo_rsp_i     ( floo_rsp_i            ),
+        .floo_req_o     ( floo_req_o            ),
+        .floo_rsp_o     ( floo_rsp_o            ),
+        .floo_wide_i    ( floo_wide_i           ),
+        .floo_wide_o    ( floo_wide_o           )
+      `endif // FLIT_TMR
+
+      `ifdef TARGET_STMR
+        , .tmrError       ( tmrError              )
+      `endif
+      `ifdef TARGET_FTMR
+        , .tmrErrorA      ( tmrErrorA             )
+        , .tmrErrorB      ( tmrErrorB             )
+        , .tmrErrorC      ( tmrErrorC             )
+      `endif
+    );
+  `else  // TARGET_NETLIST (baseline only — STMR netlist not supported)
+  // Synth wrapper: scalar id_route_map_i, no parameter list.
+    `ifndef HAS_TMR
+    floo_synth_nw_router i_dut (
       .clk_i          ( clk_i                 ),
       .rst_ni         ( rst_ni                ),
       .test_enable_i  ( 1'b0                  ),
       .id_i           ( id_i                  ),
-      .id_route_map_i ( id_route_map_i        ),
+      .id_route_map_i ( id_route_map_i[0]     ),
       .floo_req_i     ( floo_req_i            ),
       .floo_rsp_i     ( floo_rsp_i            ),
       .floo_req_o     ( floo_req_o            ),
@@ -179,201 +231,95 @@ module floo_nw_router_fi_dut_wrapper #(
       .floo_wide_i    ( floo_wide_i           ),
       .floo_wide_o    ( floo_wide_o           )
     );
+    `else
+    floo_synth_nw_routerTMR i_dut (
+      .clk_iA          ( clk_i                 ),
+      .clk_iB          ( clk_i                 ),
+      .clk_iC          ( clk_i                 ),
+      .rst_niA         ( rst_ni                ),
+      .rst_niB         ( rst_ni                ),
+      .rst_niC         ( rst_ni                ),
+      .test_enable_iA  ( 1'b0                  ),
+      .test_enable_iB  ( 1'b0                  ),
+      .test_enable_iC  ( 1'b0                  ),
+      .id_iA           ( id_i                  ),
+      .id_iB           ( id_i                  ),
+      .id_iC           ( id_i                  ),
+      .id_route_map_iA ( id_route_map_i[0]     ),
+      .id_route_map_iB ( id_route_map_i[0]     ),
+      .id_route_map_iC ( id_route_map_i[0]     ),
+      .floo_req_iA     ( floo_req_i            ),
+      .floo_req_iB     ( floo_req_i            ),
+      .floo_req_iC     ( floo_req_i            ),
+      .floo_rsp_iA     ( floo_rsp_i            ),
+      .floo_rsp_iB     ( floo_rsp_i            ),
+      .floo_rsp_iC     ( floo_rsp_i            ),
+      .floo_req_oA     ( req_oA                ),
+      .floo_req_oB     ( req_oB                ),
+      .floo_req_oC     ( req_oC                ),
+      .floo_rsp_oA     ( rsp_oA                ),
+      .floo_rsp_oB     ( rsp_oB                ),
+      .floo_rsp_oC     ( rsp_oC                ),
+      .floo_wide_iA    ( floo_wide_i           ),
+      .floo_wide_iB    ( floo_wide_i           ),
+      .floo_wide_iC    ( floo_wide_i           ),
+      .floo_wide_oA    ( wide_oA               ),
+      .floo_wide_oB    ( wide_oB               ),
+      .floo_wide_oC    ( wide_oC               )
+    `ifdef TARGET_FTMR
+      , .tmrErrorA       ( tmrErrorA             )
+      , .tmrErrorB       ( tmrErrorB             )
+      , .tmrErrorC       ( tmrErrorC             )
     `endif
-  `else  // TARGET_NETLIST (baseline only — STMR netlist not supported)
-  // Synth wrapper: scalar id_route_map_i, no parameter list.
-  floo_synth_nw_router i_dut (
-    .clk_i          ( clk_i                 ),
-    .rst_ni         ( rst_ni                ),
-    .test_enable_i  ( 1'b0                  ),
-    .id_i           ( id_i                  ),
-    .id_route_map_i ( id_route_map_i[0]     ),
-    .floo_req_i     ( floo_req_i            ),
-    .floo_rsp_i     ( floo_rsp_i            ),
-    .floo_req_o     ( floo_req_o            ),
-    .floo_rsp_o     ( floo_rsp_o            ),
-    .floo_wide_i    ( floo_wide_i           ),
-    .floo_wide_o    ( floo_wide_o           )
-  );
-  `endif
+    );
+    `endif // HAS_TMR
+  `endif // TARGET_NETLIST
 
-  `ifdef TARGET_STMR
-  assign dut_error = tmrError;
+  `ifdef TARGET_FTMR
+    assign dut_error = tmrErrorA | tmrErrorB | tmrErrorC;
+  `elsif TARGET_STMR
+    assign dut_error = tmrError;
   `else
-  assign dut_error = 1'b0;
-  `endif
-  assign border_error              = 1'b0;
-  assign dut_req_replica_mismatch  = '0;
-  assign dut_rsp_replica_mismatch  = '0;
-  assign dut_wide_replica_mismatch = '0;
-
-`endif  // !HAS_TMR
-
-
-`ifdef HAS_TMR
-  // ====================================================================
-  // SHARED TMR (CTMR + FTMR)
-  // Triplicated inputs/outputs, inline border majority voters, per-replica
-  // mismatch. FTMR adds a DUT-internal error signal on top.
-  // ====================================================================
-  floo_req_t  [NumOutputs-1:0] req_oA, req_oB, req_oC;
-  floo_rsp_t  [NumInputs-1:0]  rsp_oA, rsp_oB, rsp_oC;
-  floo_wide_t [NumRoutes-1:0]  wide_oA, wide_oB, wide_oC;
-
-  `ifdef TARGET_FTMR
-  logic tmrErrorA, tmrErrorB, tmrErrorC;
+    assign dut_error = 1'b0;
   `endif
 
-  `ifndef TARGET_NETLIST
-  floo_nw_routerTMR #(
-    .AxiCfgN      ( floo_test_pkg::AxiCfgN          ),
-    .AxiCfgW      ( floo_test_pkg::AxiCfgW          ),
-    .RouteAlgo    ( floo_pkg::XYRouting             ),
-    .NumRoutes    ( floo_pkg::NumDirections         ),
-    .InFifoDepth  ( floo_test_pkg::ChannelFifoDepth ),
-    .OutFifoDepth ( floo_test_pkg::OutputFifoDepth  ),
-    .id_t         ( id_t                            ),
-    .NumAddrRules ( NumAddrRules                    ),
-    .addr_rule_t  ( addr_rule_t                     ),
-    .hdr_t        ( hdr_t                           ),
-    .floo_req_t   ( floo_req_t                      ),
-    .floo_rsp_t   ( floo_rsp_t                      ),
-    .floo_wide_t  ( floo_wide_t                     )
-  ) i_dut (
-    .clk_iA          ( clk_i                 ),
-    .clk_iB          ( clk_i                 ),
-    .clk_iC          ( clk_i                 ),
-    .rst_niA         ( rst_ni                ),
-    .rst_niB         ( rst_ni                ),
-    .rst_niC         ( rst_ni                ),
-    .test_enable_iA  ( 1'b0                  ),
-    .test_enable_iB  ( 1'b0                  ),
-    .test_enable_iC  ( 1'b0                  ),
-    .id_iA           ( id_i                  ),
-    .id_iB           ( id_i                  ),
-    .id_iC           ( id_i                  ),
-    .id_route_map_iA ( id_route_map_i        ),
-    .id_route_map_iB ( id_route_map_i        ),
-    .id_route_map_iC ( id_route_map_i        ),
-    .floo_req_iA     ( floo_req_i            ),
-    .floo_req_iB     ( floo_req_i            ),
-    .floo_req_iC     ( floo_req_i            ),
-    .floo_rsp_iA     ( floo_rsp_i            ),
-    .floo_rsp_iB     ( floo_rsp_i            ),
-    .floo_rsp_iC     ( floo_rsp_i            ),
-    .floo_req_oA     ( req_oA                ),
-    .floo_req_oB     ( req_oB                ),
-    .floo_req_oC     ( req_oC                ),
-    .floo_rsp_oA     ( rsp_oA                ),
-    .floo_rsp_oB     ( rsp_oB                ),
-    .floo_rsp_oC     ( rsp_oC                ),
-    .floo_wide_iA    ( floo_wide_i           ),
-    .floo_wide_iB    ( floo_wide_i           ),
-    .floo_wide_iC    ( floo_wide_i           ),
-    .floo_wide_oA    ( wide_oA               ),
-    .floo_wide_oB    ( wide_oB               ),
-    .floo_wide_oC    ( wide_oC               )
-  `ifdef TARGET_FTMR
-    , .tmrErrorA       ( tmrErrorA             )
-    , .tmrErrorB       ( tmrErrorB             )
-    , .tmrErrorC       ( tmrErrorC             )
-  `endif
-  );
-  `else  // TARGET_NETLIST
-  // Synth wrapper TMR: no parameter list, scalar id_route_map_i?.
-  floo_synth_nw_routerTMR i_dut (
-    .clk_iA          ( clk_i                 ),
-    .clk_iB          ( clk_i                 ),
-    .clk_iC          ( clk_i                 ),
-    .rst_niA         ( rst_ni                ),
-    .rst_niB         ( rst_ni                ),
-    .rst_niC         ( rst_ni                ),
-    .test_enable_iA  ( 1'b0                  ),
-    .test_enable_iB  ( 1'b0                  ),
-    .test_enable_iC  ( 1'b0                  ),
-    .id_iA           ( id_i                  ),
-    .id_iB           ( id_i                  ),
-    .id_iC           ( id_i                  ),
-    .id_route_map_iA ( id_route_map_i[0]     ),
-    .id_route_map_iB ( id_route_map_i[0]     ),
-    .id_route_map_iC ( id_route_map_i[0]     ),
-    .floo_req_iA     ( floo_req_i            ),
-    .floo_req_iB     ( floo_req_i            ),
-    .floo_req_iC     ( floo_req_i            ),
-    .floo_rsp_iA     ( floo_rsp_i            ),
-    .floo_rsp_iB     ( floo_rsp_i            ),
-    .floo_rsp_iC     ( floo_rsp_i            ),
-    .floo_req_oA     ( req_oA                ),
-    .floo_req_oB     ( req_oB                ),
-    .floo_req_oC     ( req_oC                ),
-    .floo_rsp_oA     ( rsp_oA                ),
-    .floo_rsp_oB     ( rsp_oB                ),
-    .floo_rsp_oC     ( rsp_oC                ),
-    .floo_wide_iA    ( floo_wide_i           ),
-    .floo_wide_iB    ( floo_wide_i           ),
-    .floo_wide_iC    ( floo_wide_i           ),
-    .floo_wide_oA    ( wide_oA               ),
-    .floo_wide_oB    ( wide_oB               ),
-    .floo_wide_oC    ( wide_oC               )
-  `ifdef TARGET_FTMR
-    , .tmrErrorA       ( tmrErrorA             )
-    , .tmrErrorB       ( tmrErrorB             )
-    , .tmrErrorC       ( tmrErrorC             )
-  `endif
-  );
-  `endif
-
-  `ifdef TARGET_FTMR
-  assign dut_error = tmrErrorA | tmrErrorB | tmrErrorC;
+  `ifdef FLIT_TMR
+    logic [NumOutputs-1:0] req_vote_err;
+    logic [NumInputs-1:0]  rsp_vote_err;
+    logic [NumRoutes-1:0]  wide_vote_err;
+    for (genvar i = 0; i < NumOutputs; i++) begin: gen_border_voters
+      bitwise_TMR_voter_fail #(
+        .DataWidth($bits(floo_req_t))
+      ) i_req_border_voter (
+        .a_i              ( req_oA[i]          ),
+        .b_i              ( req_oB[i]          ),
+        .c_i              ( req_oC[i]          ),
+        .majority_o       ( floo_req_o[i]     ),
+        .fault_detected_o ( req_vote_err[i]   )
+      );
+      bitwise_TMR_voter_fail #(
+        .DataWidth($bits(floo_rsp_t))
+      ) i_rsp_border_voter (
+        .a_i              ( rsp_oA[i]          ),
+        .b_i              ( rsp_oB[i]          ),
+        .c_i              ( rsp_oC[i]          ),
+        .majority_o       ( floo_rsp_o[i]     ),
+        .fault_detected_o ( rsp_vote_err[i]   )
+      );
+      bitwise_TMR_voter_fail #(
+        .DataWidth($bits(floo_wide_t))
+      ) i_wide_border_voter (
+        .a_i              ( wide_oA[i]         ),
+        .b_i              ( wide_oB[i]         ),
+        .c_i              ( wide_oC[i]         ),
+        .majority_o       ( floo_wide_o[i]    ),
+        .fault_detected_o ( wide_vote_err[i]  )
+      );
+    end
+    assign border_error = |req_vote_err | |rsp_vote_err | |wide_vote_err;
   `else
-  assign dut_error = 1'b0;
+    assign border_error = 1'b0;
   `endif
-
-  // Inline border majority voters. The 2-pair (A!=B)|(B!=C) error check is
-  // logically equivalent to the 3-pair XOR-reduce by transitivity.
-  logic [NumOutputs-1:0] req_vote_err;
-  logic [NumInputs-1:0]  rsp_vote_err;
-  logic [NumRoutes-1:0]  wide_vote_err;
-
-  for (genvar i = 0; i < NumOutputs; i++) begin : g_req_vote
-    assign floo_req_o[i] = (req_oA[i] & req_oB[i])
-                         | (req_oA[i] & req_oC[i])
-                         | (req_oB[i] & req_oC[i]);
-    assign req_vote_err[i]             = (req_oA[i] != req_oB[i])
-                                       | (req_oB[i] != req_oC[i]);
-    assign dut_req_replica_mismatch[i] = req_vote_err[i];
-  end
-
-  for (genvar i = 0; i < NumInputs; i++) begin : g_rsp_vote
-    assign floo_rsp_o[i] = (rsp_oA[i] & rsp_oB[i])
-                         | (rsp_oA[i] & rsp_oC[i])
-                         | (rsp_oB[i] & rsp_oC[i]);
-    assign rsp_vote_err[i]             = (rsp_oA[i] != rsp_oB[i])
-                                       | (rsp_oB[i] != rsp_oC[i]);
-    assign dut_rsp_replica_mismatch[i] = rsp_vote_err[i];
-  end
-
-  for (genvar i = 0; i < NumRoutes; i++) begin : g_wide_vote
-    assign floo_wide_o[i] = (wide_oA[i] & wide_oB[i])
-                          | (wide_oA[i] & wide_oC[i])
-                          | (wide_oB[i] & wide_oC[i]);
-    assign wide_vote_err[i]             = (wide_oA[i] != wide_oB[i])
-                                        | (wide_oB[i] != wide_oC[i]);
-    assign dut_wide_replica_mismatch[i] = wide_vote_err[i];
-  end
-
-  assign border_error = |req_vote_err | |rsp_vote_err | |wide_vote_err;
-
-`endif  // HAS_TMR
-
-
-  // --------------------------------------------------------------------
-  // Aggregate replica-mismatch signal consumed by strobe.sv
-  // --------------------------------------------------------------------
-  logic replica_mismatch_any;
-  assign replica_mismatch_any = |dut_req_replica_mismatch
-                              | |dut_rsp_replica_mismatch
-                              | |dut_wide_replica_mismatch;
 
   // --------------------------------------------------------------------
   // End-of-simulation liveness signal for the strobe.
