@@ -283,43 +283,160 @@ module floo_nw_router_fi_dut_wrapper #(
     assign dut_error = 1'b0;
   `endif
 
+  // --------------------------------------------------------------------
+  // Border voter + per-port replica mismatch (CTMR / FTMR).
+  //
+  // Inlined Classical_MV majority `(A&B) | (B&C) | (A&C)` per port instead
+  // of instancing `bitwise_TMR_voter_fail`, and inlined pairwise mismatch
+  // `(A!==B) || (B!==C)` (AB+BC is transitive over equality). Both share
+  // the same A/B/C inputs, so they live in one generate block.
+  //
+  // `border_error` is OR-reduced from the mismatch flags rather than the
+  // voter's `fault_detected` cone — Z01X concurrent-FM redundancy-collapses
+  // the TMR voter cone, dead-coding `fault_detected_o` to 0 in FM. The
+  // explicit `!==` pairwise compare reads A/B/C directly so Z01X keeps
+  // them observed and the FM-side mismatch propagates to $fs_compare.
+  //
+  // `!==` (X-strict) returns a clean 0/1 even with X on a replica, so the
+  // strobe never sees an X-tainted compare result.
+  // --------------------------------------------------------------------
   `ifdef FLIT_TMR
-    logic [NumOutputs-1:0] req_vote_err;
-    logic [NumInputs-1:0]  rsp_vote_err;
-    logic [NumRoutes-1:0]  wide_vote_err;
-    for (genvar i = 0; i < NumOutputs; i++) begin: gen_border_voters
-      bitwise_TMR_voter_fail #(
-        .DataWidth($bits(floo_req_t))
-      ) i_req_border_voter (
-        .a_i              ( req_oA[i]          ),
-        .b_i              ( req_oB[i]          ),
-        .c_i              ( req_oC[i]          ),
-        .majority_o       ( floo_req_o[i]     ),
-        .fault_detected_o ( req_vote_err[i]   )
-      );
-      bitwise_TMR_voter_fail #(
-        .DataWidth($bits(floo_rsp_t))
-      ) i_rsp_border_voter (
-        .a_i              ( rsp_oA[i]          ),
-        .b_i              ( rsp_oB[i]          ),
-        .c_i              ( rsp_oC[i]          ),
-        .majority_o       ( floo_rsp_o[i]     ),
-        .fault_detected_o ( rsp_vote_err[i]   )
-      );
-      bitwise_TMR_voter_fail #(
-        .DataWidth($bits(floo_wide_t))
-      ) i_wide_border_voter (
-        .a_i              ( wide_oA[i]         ),
-        .b_i              ( wide_oB[i]         ),
-        .c_i              ( wide_oC[i]         ),
-        .majority_o       ( floo_wide_o[i]    ),
-        .fault_detected_o ( wide_vote_err[i]  )
-      );
+    for (genvar i = 0; i < NumOutputs; i++) begin: gen_req_border
+      assign floo_req_o[i] =
+          (req_oA[i] & req_oB[i]) | (req_oB[i] & req_oC[i]) | (req_oA[i] & req_oC[i]);
+      assign dut_req_replica_mismatch[i] =
+          (req_oA[i] !== req_oB[i]) || (req_oB[i] !== req_oC[i]);
     end
-    assign border_error = |req_vote_err | |rsp_vote_err | |wide_vote_err;
+    for (genvar i = 0; i < NumInputs; i++) begin: gen_rsp_border
+      assign floo_rsp_o[i] =
+          (rsp_oA[i] & rsp_oB[i]) | (rsp_oB[i] & rsp_oC[i]) | (rsp_oA[i] & rsp_oC[i]);
+      assign dut_rsp_replica_mismatch[i] =
+          (rsp_oA[i] !== rsp_oB[i]) || (rsp_oB[i] !== rsp_oC[i]);
+    end
+    for (genvar i = 0; i < NumRoutes; i++) begin: gen_wide_border
+      assign floo_wide_o[i] =
+          (wide_oA[i] & wide_oB[i]) | (wide_oB[i] & wide_oC[i]) | (wide_oA[i] & wide_oC[i]);
+      assign dut_wide_replica_mismatch[i] =
+          (wide_oA[i] !== wide_oB[i]) || (wide_oB[i] !== wide_oC[i]);
+    end
+    assign border_error =
+        (|dut_req_replica_mismatch) | (|dut_rsp_replica_mismatch) | (|dut_wide_replica_mismatch);
   `else
-    assign border_error = 1'b0;
+    assign border_error              = 1'b0;
+    assign dut_req_replica_mismatch  = '0;
+    assign dut_rsp_replica_mismatch  = '0;
+    assign dut_wide_replica_mismatch = '0;
   `endif
+
+  // ====================================================================
+  // In-wrapper scoreboard for FM-aware interface_error / leftover detection
+  // --------------------------------------------------------------------
+  // For each (input_port, output_port, channel) bucket we shadow the flits
+  // that have been pushed into the router but not yet emitted, using a
+  // synthesizable fifo_v3 (so it stays FM-aware under VC Z01X concurrent
+  // mode — smart queues `[$]` are unsupported there and fall to IA).
+  //
+  //   Push: input_port handshake whose flit.dst_id (XY-routed against
+  //         this router's id_i) selects output_port.
+  //   Pop:  output_port handshake whose observed flit matches the FIFO
+  //         front of one of the input_port buckets feeding it. The match
+  //         search is order-agnostic across inputs to decouple from the
+  //         router's internal arbiter.
+  //
+  // Aggregated outputs:
+  //   interface_error    — any output handshake whose flit cannot be
+  //                        matched to any input bucket front (router
+  //                        invented / corrupted / mis-routed a flit).
+  //   any_fifo_leftover  — at least one bucket non-empty (used in the
+  //                        strobe `final` block to escalate dropped-flit
+  //                        faults to *F).
+  // ====================================================================
+
+  localparam int unsigned SbDepth =
+      floo_test_pkg::ChannelFifoDepth + floo_test_pkg::OutputFifoDepth + 4;
+
+  function automatic int unsigned expected_out_port(id_t self_id, id_t dst_id);
+    if      (dst_id.x > self_id.x) return int'(floo_pkg::East);
+    else if (dst_id.x < self_id.x) return int'(floo_pkg::West);
+    else if (dst_id.y > self_id.y) return int'(floo_pkg::North);
+    else if (dst_id.y < self_id.y) return int'(floo_pkg::South);
+    else                           return int'(floo_pkg::Eject);
+  endfunction
+
+  // The fifo stores the whole link struct floo_<NAME>_t (in-scope as a
+  // wrapper parameter). Comparison only uses the `.<NAME>` (chan) field —
+  // valid is always 1 at handshake time, and `.ready` carries the OPPOSITE
+  // direction's backward bit (unrelated to this side's handshake) so it
+  // would cause spurious mismatches if included in the compare.
+  `define DECLARE_SB_CHAN(NAME)                                                                    \
+    floo_``NAME``_t [NumRoutes-1:0][NumRoutes-1:0] sb_``NAME``_front;                              \
+    logic           [NumRoutes-1:0][NumRoutes-1:0] sb_``NAME``_empty;                              \
+    logic           [NumRoutes-1:0][NumRoutes-1:0] sb_``NAME``_push;                               \
+    logic           [NumRoutes-1:0][NumRoutes-1:0] sb_``NAME``_pop;                                \
+    logic           [NumRoutes-1:0][NumRoutes-1:0] sb_``NAME``_match;                              \
+    logic           [NumRoutes-1:0]                sb_``NAME``_out_mismatch;                       \
+                                                                                                   \
+    for (genvar i_g = 0; i_g < NumRoutes; i_g++) begin : gen_sb_``NAME``_in                        \
+      for (genvar o_g = 0; o_g < NumRoutes; o_g++) begin : gen_sb_``NAME``_out                     \
+        assign sb_``NAME``_push[i_g][o_g] =                                                        \
+            floo_``NAME``_i[i_g].valid && floo_``NAME``_o[i_g].ready &&                            \
+            (expected_out_port(id_i, floo_``NAME``_i[i_g].``NAME``.generic.hdr.dst_id) == o_g);    \
+        fifo_v3 #(                                                                                 \
+          .FALL_THROUGH ( 1'b0                              ),                                     \
+          .DATA_WIDTH   ( $bits(floo_``NAME``_t)            ),                                     \
+          .DEPTH        ( SbDepth                           )                                      \
+        ) i_sb_``NAME``_fifo (                                                                     \
+          .clk_i        ( clk_i                             ),                                     \
+          .rst_ni       ( rst_ni                            ),                                     \
+          .flush_i      ( 1'b0                              ),                                     \
+          .testmode_i   ( 1'b0                              ),                                     \
+          .full_o       (                                   ),                                     \
+          .empty_o      ( sb_``NAME``_empty[i_g][o_g]       ),                                     \
+          .usage_o      (                                   ),                                     \
+          .data_i       ( floo_``NAME``_i[i_g]              ),                                     \
+          .push_i       ( sb_``NAME``_push[i_g][o_g]        ),                                     \
+          .data_o       ( sb_``NAME``_front[i_g][o_g]       ),                                     \
+          .pop_i        ( sb_``NAME``_pop[i_g][o_g]         )                                      \
+        );                                                                                         \
+      end                                                                                          \
+    end                                                                                            \
+                                                                                                   \
+    always_comb begin                                                                              \
+      sb_``NAME``_pop          = '0;                                                               \
+      sb_``NAME``_match        = '0;                                                               \
+      sb_``NAME``_out_mismatch = '0;                                                               \
+      for (int o = 0; o < NumRoutes; o++) begin                                                    \
+        automatic logic out_hs    = floo_``NAME``_o[o].valid && floo_``NAME``_i[o].ready;          \
+        automatic logic any_match = 1'b0;                                                          \
+        for (int i = 0; i < NumRoutes; i++) begin                                                  \
+          sb_``NAME``_match[i][o] = out_hs && !sb_``NAME``_empty[i][o] &&                          \
+              (sb_``NAME``_front[i][o].``NAME`` === floo_``NAME``_o[o].``NAME``);                  \
+          any_match = any_match | sb_``NAME``_match[i][o];                                         \
+        end                                                                                        \
+        sb_``NAME``_out_mismatch[o] = out_hs && !any_match;                                        \
+        if (out_hs) begin                                                                          \
+          for (int i = 0; i < NumRoutes; i++) begin                                                \
+            if (sb_``NAME``_match[i][o]) begin                                                     \
+              sb_``NAME``_pop[i][o] = 1'b1;                                                        \
+              break;                                                                               \
+            end                                                                                    \
+          end                                                                                      \
+        end                                                                                        \
+      end                                                                                          \
+    end
+
+  `DECLARE_SB_CHAN(req)
+  `DECLARE_SB_CHAN(rsp)
+  `DECLARE_SB_CHAN(wide)
+
+  `undef DECLARE_SB_CHAN
+
+  logic interface_error;
+  logic any_fifo_leftover;
+  assign interface_error =
+      (|sb_req_out_mismatch) | (|sb_rsp_out_mismatch) | (|sb_wide_out_mismatch);
+  assign any_fifo_leftover =
+      ~(&sb_req_empty) | ~(&sb_rsp_empty) | ~(&sb_wide_empty);
 
   // --------------------------------------------------------------------
   // End-of-simulation liveness signal for the strobe.
