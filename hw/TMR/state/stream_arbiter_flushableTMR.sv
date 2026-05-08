@@ -50,7 +50,7 @@ module stream_arbiter_flushableTMR #(
   input logic oup_ready_i,
   output tmrError
 );
-wor i_arbitertmrError;
+wire i_arbitertmrError;
 if (ARBITER=="rr")
   begin : gen_rr_arb
 

@@ -162,6 +162,15 @@ if (NumIn==unsigned'(1))
     assign idx_oA = '0;
     assign idx_oB = '0;
     assign idx_oC = '0;
+    assign rr_qTmrErrorC = 1'b0;
+    assign req_qTmrErrorC = 1'b0;
+    assign lock_qTmrErrorC = 1'b0;
+    assign rr_qTmrErrorB = 1'b0;
+    assign req_qTmrErrorB = 1'b0;
+    assign lock_qTmrErrorB = 1'b0;
+    assign rr_qTmrErrorA = 1'b0;
+    assign req_qTmrErrorA = 1'b0;
+    assign lock_qTmrErrorA = 1'b0;
   end
 
 else
@@ -183,6 +192,9 @@ else
         assign req_dA = req_iA;
         assign req_dB = req_iB;
         assign req_dC = req_iC;
+        assign rr_qTmrErrorA = 1'b0;
+        assign rr_qTmrErrorB = 1'b0;
+        assign rr_qTmrErrorC = 1'b0;
       end
 
     else
@@ -309,6 +321,55 @@ else
                       end
                   end
               end
+
+            majorityVoter lock_qVoterA (
+                .inA(lock_qA),
+                .inB(lock_qB),
+                .inC(lock_qC),
+                .out(lock_qVotedA),
+                .tmrErr(lock_qTmrErrorA)
+              );
+
+            majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_qVoterA (
+                .inA(req_qA),
+                .inB(req_qB),
+                .inC(req_qC),
+                .out(req_qVotedA),
+                .tmrErr(req_qTmrErrorA)
+              );
+
+            majorityVoter lock_qVoterB (
+                .inA(lock_qA),
+                .inB(lock_qB),
+                .inC(lock_qC),
+                .out(lock_qVotedB),
+                .tmrErr(lock_qTmrErrorB)
+              );
+
+            majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_qVoterB (
+                .inA(req_qA),
+                .inB(req_qB),
+                .inC(req_qC),
+                .out(req_qVotedB),
+                .tmrErr(req_qTmrErrorB)
+              );
+
+            majorityVoter lock_qVoterC (
+                .inA(lock_qA),
+                .inB(lock_qB),
+                .inC(lock_qC),
+                .out(lock_qVotedC),
+                .tmrErr(lock_qTmrErrorC)
+              );
+
+            majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_qVoterC (
+                .inA(req_qA),
+                .inB(req_qB),
+                .inC(req_qC),
+                .out(req_qVotedC),
+                .tmrErr(req_qTmrErrorC)
+              );
+
           end
 
         else
@@ -316,6 +377,12 @@ else
             assign req_dA = req_iA;
             assign req_dB = req_iB;
             assign req_dC = req_iC;
+            assign lock_qtmrErrorA = 1'b0;
+            assign lock_qtmrErrorB = 1'b0;
+            assign lock_qtmrErrorC = 1'b0;
+            assign req_qtmrErrorA = 1'b0;
+            assign req_qtmrErrorB = 1'b0;
+            assign req_qtmrErrorC = 1'b0;
           end
         if (FairArb)
                   begin : gen_fair_arb
@@ -435,6 +502,28 @@ else
                   end
               end
           end
+
+        majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterA (
+            .inA(rr_qA),
+            .inB(rr_qB),
+            .inC(rr_qC),
+            .out(rr_qVotedA),
+            .tmrErr(rr_qTmrErrorA)
+          );
+        majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterB (
+            .inA(rr_qA),
+            .inB(rr_qB),
+            .inC(rr_qC),
+            .out(rr_qVotedB),
+            .tmrErr(rr_qTmrErrorB)
+          );
+        majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterC (
+            .inA(rr_qA),
+            .inB(rr_qB),
+            .inC(rr_qC),
+            .out(rr_qVotedC),
+            .tmrErr(rr_qTmrErrorC)
+          );
       end
     assign gnt_nodesA[0] = gnt_iA;
     assign gnt_nodesB[0] = gnt_iB;
@@ -525,79 +614,10 @@ localparam int unsigned Idx1 = 2** (level+1)  - 1 + l * 2;
       end
   end
 
-majorityVoter lock_qVoterA (
-    .inA(lock_qA),
-    .inB(lock_qB),
-    .inC(lock_qC),
-    .out(lock_qVotedA),
-    .tmrErr(lock_qTmrErrorA)
-  );
-
-majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_qVoterA (
-    .inA(req_qA),
-    .inB(req_qB),
-    .inC(req_qC),
-    .out(req_qVotedA),
-    .tmrErr(req_qTmrErrorA)
-  );
-
-majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterA (
-    .inA(rr_qA),
-    .inB(rr_qB),
-    .inC(rr_qC),
-    .out(rr_qVotedA),
-    .tmrErr(rr_qTmrErrorA)
-  );
 assign tmrErrorA = lock_qTmrErrorA|req_qTmrErrorA|rr_qTmrErrorA;
 
-majorityVoter lock_qVoterB (
-    .inA(lock_qA),
-    .inB(lock_qB),
-    .inC(lock_qC),
-    .out(lock_qVotedB),
-    .tmrErr(lock_qTmrErrorB)
-  );
-
-majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_qVoterB (
-    .inA(req_qA),
-    .inB(req_qB),
-    .inC(req_qC),
-    .out(req_qVotedB),
-    .tmrErr(req_qTmrErrorB)
-  );
-
-majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterB (
-    .inA(rr_qA),
-    .inB(rr_qB),
-    .inC(rr_qC),
-    .out(rr_qVotedB),
-    .tmrErr(rr_qTmrErrorB)
-  );
 assign tmrErrorB = lock_qTmrErrorB|req_qTmrErrorB|rr_qTmrErrorB;
 
-majorityVoter lock_qVoterC (
-    .inA(lock_qA),
-    .inB(lock_qB),
-    .inC(lock_qC),
-    .out(lock_qVotedC),
-    .tmrErr(lock_qTmrErrorC)
-  );
-
-majorityVoter #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_qVoterC (
-    .inA(req_qA),
-    .inB(req_qB),
-    .inC(req_qC),
-    .out(req_qVotedC),
-    .tmrErr(req_qTmrErrorC)
-  );
-
-majorityVoter #(.WIDTH( ($bits(rr_qVotedA)) )) rr_qVoterC (
-    .inA(rr_qA),
-    .inB(rr_qB),
-    .inC(rr_qC),
-    .out(rr_qVotedC),
-    .tmrErr(rr_qTmrErrorC)
-  );
 assign tmrErrorC = lock_qTmrErrorC|req_qTmrErrorC|rr_qTmrErrorC;
 endmodule : rr_arb_treeTMR
 

@@ -359,6 +359,16 @@ endmodule
 
 
 // /scratch/chenwu/tmrg/tmrg/../common/voter.v
+//
+// NOTE (FI): tmrErr derivation patched for Z01X concurrent-FM compatibility.
+// The original `inA != inB || inA != inC || inB != inC` is structurally a
+// TMR-voter redundancy-detection cone; Z01X recognises the pattern and
+// dead-codes `tmrErr` to 0 in FM, hiding most internal-voter detections
+// (CM was ~3% in port FTMR campaigns despite plenty of inter-voter faults
+// that should have triggered downstream voters). We replace it with a
+// pairwise X-strict (`!==`) compare on AB + BC (transitive over equality)
+// — same workaround as `dut_*_replica_mismatch` in the wrapper. The `out`
+// majority logic is untouched.
 module majorityVoter #(
   parameter WIDTH = 1
 )(
@@ -366,13 +376,8 @@ module majorityVoter #(
   input wire  [WIDTH-1:0] inB,
   input wire  [WIDTH-1:0] inC,
   output wire [WIDTH-1:0] out,
-  output reg              tmrErr
+  output wire             tmrErr
 );
-  assign out = (inA&inB) | (inA&inC) | (inB&inC);
-  always @(inA or inB or inC) begin
-    if (inA!=inB || inA!=inC || inB!=inC)
-      tmrErr = 1;
-    else
-      tmrErr = 0;
-  end
+  assign out    = (inA&inB) | (inA&inC) | (inB&inC);
+  assign tmrErr = (inA !== inB) || (inB !== inC);
 endmodule

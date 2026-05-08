@@ -73,9 +73,9 @@ wire lock_dA;
 wire flush_iC;
 wire flush_iB;
 wire flush_iA;
-wor rr_qTmrError;
-wor req_qTmrError;
-wor lock_qTmrError;
+wire rr_qTmrError;
+wire req_qTmrError;
+wire lock_qTmrError;
 wire idx_t rr_q;
 wire [ (NumIn-1) :0] req_q;
 wire lock_q;
@@ -106,11 +106,17 @@ logic [NumIn - 1:0] req_d;
     assign idx_o = index_nodes[0];
     if (ExtPrio)
           begin : gen_ext_rr
-        assign rr_qA = rr_iA;
-        assign rr_qB = rr_iB;
-        assign rr_qC = rr_iC;
+        assign rr_q = rr_i;
         assign req_d = req_i;
         assign rr_qTmrError = 1'b0;
+        assign req_qTmrError = 1'b0;
+        assign lock_qTmrError = 1'b0;
+        fanout #(.WIDTH( ($bits(rr_q)) )) rr_iFanout (
+            .in(rr_i),
+            .outA(rr_iA),
+            .outB(rr_iB),
+            .outC(rr_iC)
+          );
       end
 
     else
@@ -264,6 +270,12 @@ logic [NumIn - 1:0] req_qC;
                 .outB(lock_dB),
                 .outC(lock_dC)
               );
+            fanout #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_dFanout (
+                .in(req_d),
+                .outA(req_dA),
+                .outB(req_dB),
+                .outC(req_dC)
+              );
           end
 
         else
@@ -364,12 +376,27 @@ logic lower_empty;
               end
           end
 
+        majorityVoter #(.WIDTH( ($bits(rr_q)) )) rr_qVoter (
+          .inA(rr_qA),
+          .inB(rr_qB),
+          .inC(rr_qC),
+          .out(rr_q),
+          .tmrErr(rr_qTmrError)
+        );
+
         fanout #(.WIDTH( ($bits(rr_q)) )) rr_dFanout (
-            .in(rr_d),
-            .outA(rr_dA),
-            .outB(rr_dB),
-            .outC(rr_dC)
-          );
+          .in(rr_d),
+          .outA(rr_dA),
+          .outB(rr_dB),
+          .outC(rr_dC)
+        );
+
+        fanout flush_iFanout (
+          .in(flush_i),
+          .outA(flush_iA),
+          .outB(flush_iB),
+          .outC(flush_iC)
+        );
       end
     assign gnt_nodes[0] = gnt_i;
     for(genvar level = 0; unsigned' (level) <NumLevels; level++)
@@ -417,35 +444,8 @@ localparam int unsigned Idx1 = 2** (level+1)  - 1 + l * 2;
           end
       end
 
-    majorityVoter #(.WIDTH( ($bits(rr_q)) )) rr_qVoter (
-        .inA(rr_qA),
-        .inB(rr_qB),
-        .inC(rr_qC),
-        .out(rr_q),
-        .tmrErr(rr_qTmrError)
-      );
-
-    fanout #(.WIDTH( ((((NumIn-1)>0) ? (NumIn-1) : - ( NumIn-1 ) )+1) )) req_dFanout (
-        .in(req_d),
-        .outA(req_dA),
-        .outB(req_dB),
-        .outC(req_dC)
-      );
   end
 assign tmrError = lock_qTmrError|req_qTmrError|rr_qTmrError;
 
-fanout flush_iFanout (
-    .in(flush_i),
-    .outA(flush_iA),
-    .outB(flush_iB),
-    .outC(flush_iC)
-  );
-
-fanout #(.WIDTH( ($bits(rr_q)) )) rr_iFanout (
-    .in(rr_i),
-    .outA(rr_iA),
-    .outB(rr_iB),
-    .outC(rr_iC)
-  );
 endmodule : rr_arb_treeTMR
 

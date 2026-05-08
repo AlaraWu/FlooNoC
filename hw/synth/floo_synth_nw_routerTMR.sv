@@ -17,6 +17,7 @@ module floo_synth_nw_routerTMR
   input  logic rst_niA,
   input  logic rst_niB,
   input  logic rst_niC,
+`ifndef TARGET_STMR
   input  logic test_enable_iA,
   input  logic test_enable_iB,
   input  logic test_enable_iC,
@@ -51,6 +52,19 @@ module floo_synth_nw_routerTMR
     , .tmrErrorB       ( tmrErrorB             )
     , .tmrErrorC       ( tmrErrorC             )
   `endif
+`else
+  // For STMR, the wrapper exposes single-copy I/O (no replica signals exist).
+  input  logic test_enable_i,
+  input  id_t id_i,
+  input  logic id_route_map_i,
+  input  floo_req_t [NumPorts-1:0] floo_req_i,
+  input  floo_rsp_t [NumPorts-1:0] floo_rsp_i,
+  output floo_req_t [NumPorts-1:0] floo_req_o,
+  output floo_rsp_t [NumPorts-1:0] floo_rsp_o,
+  input  floo_wide_t [NumPorts-1:0] floo_wide_i,
+  output floo_wide_t [NumPorts-1:0] floo_wide_o,
+  output tmrError
+`endif
 );
 
   floo_nw_routerTMR #(
@@ -74,38 +88,51 @@ module floo_synth_nw_routerTMR
     .rst_niA         ( rst_niA         ),
     .rst_niB         ( rst_niB         ),
     .rst_niC         ( rst_niC         ),
-    .test_enable_iA  ( test_enable_iA  ),
-    .test_enable_iB  ( test_enable_iB  ),
-    .test_enable_iC  ( test_enable_iC  ),
-    .id_iA           ( id_iA           ),
-    .id_iB           ( id_iB           ),
-    .id_iC           ( id_iC           ),
-    .id_route_map_iA ( id_route_map_iA ),
-    .id_route_map_iB ( id_route_map_iB ),
-    .id_route_map_iC ( id_route_map_iC ),
-    .floo_req_iA     ( floo_req_iA      ),
-    .floo_req_iB     ( floo_req_iB      ),
-    .floo_req_iC     ( floo_req_iC      ),
-    .floo_rsp_iA     ( floo_rsp_iA      ),
-    .floo_rsp_iB     ( floo_rsp_iB      ),
-    .floo_rsp_iC     ( floo_rsp_iC      ),
-    .floo_req_oA     ( floo_req_oA      ),
-    .floo_req_oB     ( floo_req_oB      ),
-    .floo_req_oC     ( floo_req_oC      ),
-    .floo_rsp_oA     ( floo_rsp_oA      ),
-    .floo_rsp_oB     ( floo_rsp_oB      ),
-    .floo_rsp_oC     ( floo_rsp_oC      ),
-    .floo_wide_iA    ( floo_wide_iA     ),
-    .floo_wide_iB    ( floo_wide_iB     ),
-    .floo_wide_iC    ( floo_wide_iC     ),
-    .floo_wide_oA    ( floo_wide_oA     ),
-    .floo_wide_oB    ( floo_wide_oB     ),
-    .floo_wide_oC    ( floo_wide_oC     )
-  `ifdef TARGET_FTMR
-    , .tmrErrorA       ( tmrErrorA             )
-    , .tmrErrorB       ( tmrErrorB             )
-    , .tmrErrorC       ( tmrErrorC             )
-  `endif
+    `ifndef TARGET_STMR
+      .test_enable_iA  ( test_enable_iA  ),
+      .test_enable_iB  ( test_enable_iB  ),
+      .test_enable_iC  ( test_enable_iC  ),
+      .id_iA           ( id_iA           ),
+      .id_iB           ( id_iB           ),
+      .id_iC           ( id_iC           ),
+      .id_route_map_iA ( id_route_map_iA ),
+      .id_route_map_iB ( id_route_map_iB ),
+      .id_route_map_iC ( id_route_map_iC ),
+      .floo_req_iA     ( floo_req_iA      ),
+      .floo_req_iB     ( floo_req_iB      ),
+      .floo_req_iC     ( floo_req_iC      ),
+      .floo_rsp_iA     ( floo_rsp_iA      ),
+      .floo_rsp_iB     ( floo_rsp_iB      ),
+      .floo_rsp_iC     ( floo_rsp_iC      ),
+      .floo_req_oA     ( floo_req_oA      ),
+      .floo_req_oB     ( floo_req_oB      ),
+      .floo_req_oC     ( floo_req_oC      ),
+      .floo_rsp_oA     ( floo_rsp_oA      ),
+      .floo_rsp_oB     ( floo_rsp_oB      ),
+      .floo_rsp_oC     ( floo_rsp_oC      ),
+      .floo_wide_iA    ( floo_wide_iA     ),
+      .floo_wide_iB    ( floo_wide_iB     ),
+      .floo_wide_iC    ( floo_wide_iC     ),
+      .floo_wide_oA    ( floo_wide_oA     ),
+      .floo_wide_oB    ( floo_wide_oB     ),
+      .floo_wide_oC    ( floo_wide_oC     )
+      `ifdef TARGET_FTMR
+      , .tmrErrorA       ( tmrErrorA             )
+      , .tmrErrorB       ( tmrErrorB             )
+      , .tmrErrorC       ( tmrErrorC             )
+      `endif
+    `else
+      .test_enable_i   ( test_enable_i   ),
+      .id_i            ( id_i            ),
+      .id_route_map_i  ( id_route_map_i  ),
+      .floo_req_i      ( floo_req_i      ),
+      .floo_rsp_i      ( floo_rsp_i      ),
+      .floo_req_o      ( floo_req_o      ),
+      .floo_rsp_o      ( floo_rsp_o      ),
+      .floo_wide_i     ( floo_wide_i     ),
+      .floo_wide_o     ( floo_wide_o     ),
+      .tmrError        ( tmrError        )
+    `endif
   );
 
 endmodule

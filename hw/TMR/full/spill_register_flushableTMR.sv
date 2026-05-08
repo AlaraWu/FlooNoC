@@ -124,6 +124,18 @@ if (Bypass)
     assign data_oA = data_iA;
     assign data_oB = data_iB;
     assign data_oC = data_iC;
+    assign b_full_qTmrErrorC = 1'b0;
+    assign b_data_qTmrErrorC = 1'b0;
+    assign a_full_qTmrErrorC = 1'b0;
+    assign a_data_qTmrErrorC = 1'b0;
+    assign b_full_qTmrErrorB = 1'b0;
+    assign b_data_qTmrErrorB = 1'b0;
+    assign a_full_qTmrErrorB = 1'b0;
+    assign a_data_qTmrErrorB = 1'b0;
+    assign b_full_qTmrErrorA = 1'b0;
+    assign b_data_qTmrErrorA = 1'b0;
+    assign a_full_qTmrErrorA = 1'b0;
+    assign a_data_qTmrErrorA = 1'b0;
   end
 
 else
@@ -284,6 +296,102 @@ logic b_full_nC;
             b_full_qC <= b_full_nC;
 
       end
+
+    majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) a_data_qVoterA (
+        .inA(a_data_qA),
+        .inB(a_data_qB),
+        .inC(a_data_qC),
+        .out(a_data_qVotedA),
+        .tmrErr(a_data_qTmrErrorA)
+      );
+
+    majorityVoter a_full_qVoterA (
+        .inA(a_full_qA),
+        .inB(a_full_qB),
+        .inC(a_full_qC),
+        .out(a_full_qVotedA),
+        .tmrErr(a_full_qTmrErrorA)
+      );
+
+    majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) b_data_qVoterA (
+        .inA(b_data_qA),
+        .inB(b_data_qB),
+        .inC(b_data_qC),
+        .out(b_data_qVotedA),
+        .tmrErr(b_data_qTmrErrorA)
+      );
+
+    majorityVoter b_full_qVoterA (
+        .inA(b_full_qA),
+        .inB(b_full_qB),
+        .inC(b_full_qC),
+        .out(b_full_qVotedA),
+        .tmrErr(b_full_qTmrErrorA)
+      );
+
+    majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) a_data_qVoterB (
+        .inA(a_data_qA),
+        .inB(a_data_qB),
+        .inC(a_data_qC),
+        .out(a_data_qVotedB),
+        .tmrErr(a_data_qTmrErrorB)
+      );
+
+    majorityVoter a_full_qVoterB (
+        .inA(a_full_qA),
+        .inB(a_full_qB),
+        .inC(a_full_qC),
+        .out(a_full_qVotedB),
+        .tmrErr(a_full_qTmrErrorB)
+      );
+
+    majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) b_data_qVoterB (
+        .inA(b_data_qA),
+        .inB(b_data_qB),
+        .inC(b_data_qC),
+        .out(b_data_qVotedB),
+        .tmrErr(b_data_qTmrErrorB)
+      );
+
+    majorityVoter b_full_qVoterB (
+        .inA(b_full_qA),
+        .inB(b_full_qB),
+        .inC(b_full_qC),
+        .out(b_full_qVotedB),
+        .tmrErr(b_full_qTmrErrorB)
+      );
+
+    majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) a_data_qVoterC (
+        .inA(a_data_qA),
+        .inB(a_data_qB),
+        .inC(a_data_qC),
+        .out(a_data_qVotedC),
+        .tmrErr(a_data_qTmrErrorC)
+      );
+
+    majorityVoter a_full_qVoterC (
+        .inA(a_full_qA),
+        .inB(a_full_qB),
+        .inC(a_full_qC),
+        .out(a_full_qVotedC),
+        .tmrErr(a_full_qTmrErrorC)
+      );
+
+    majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) b_data_qVoterC (
+        .inA(b_data_qA),
+        .inB(b_data_qB),
+        .inC(b_data_qC),
+        .out(b_data_qVotedC),
+        .tmrErr(b_data_qTmrErrorC)
+      );
+
+    majorityVoter b_full_qVoterC (
+        .inA(b_full_qA),
+        .inB(b_full_qB),
+        .inC(b_full_qC),
+        .out(b_full_qVotedC),
+        .tmrErr(b_full_qTmrErrorC)
+      );
     assign a_fillA = valid_iA&&ready_oA&& (! flush_iA ) ;
     assign a_fillB = valid_iB&&ready_oB&& (! flush_iB ) ;
     assign a_fillC = valid_iC&&ready_oC&& (! flush_iC ) ;
@@ -307,103 +415,10 @@ logic b_full_nC;
     assign data_oC = b_full_qVotedC ? b_data_qVotedC : a_data_qVotedC;
   end
 
-majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) a_data_qVoterA (
-    .inA(a_data_qA),
-    .inB(a_data_qB),
-    .inC(a_data_qC),
-    .out(a_data_qVotedA),
-    .tmrErr(a_data_qTmrErrorA)
-  );
-
-majorityVoter a_full_qVoterA (
-    .inA(a_full_qA),
-    .inB(a_full_qB),
-    .inC(a_full_qC),
-    .out(a_full_qVotedA),
-    .tmrErr(a_full_qTmrErrorA)
-  );
-
-majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) b_data_qVoterA (
-    .inA(b_data_qA),
-    .inB(b_data_qB),
-    .inC(b_data_qC),
-    .out(b_data_qVotedA),
-    .tmrErr(b_data_qTmrErrorA)
-  );
-
-majorityVoter b_full_qVoterA (
-    .inA(b_full_qA),
-    .inB(b_full_qB),
-    .inC(b_full_qC),
-    .out(b_full_qVotedA),
-    .tmrErr(b_full_qTmrErrorA)
-  );
 assign tmrErrorA = a_data_qTmrErrorA|a_full_qTmrErrorA|b_data_qTmrErrorA|b_full_qTmrErrorA;
 
-majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) a_data_qVoterB (
-    .inA(a_data_qA),
-    .inB(a_data_qB),
-    .inC(a_data_qC),
-    .out(a_data_qVotedB),
-    .tmrErr(a_data_qTmrErrorB)
-  );
-
-majorityVoter a_full_qVoterB (
-    .inA(a_full_qA),
-    .inB(a_full_qB),
-    .inC(a_full_qC),
-    .out(a_full_qVotedB),
-    .tmrErr(a_full_qTmrErrorB)
-  );
-
-majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) b_data_qVoterB (
-    .inA(b_data_qA),
-    .inB(b_data_qB),
-    .inC(b_data_qC),
-    .out(b_data_qVotedB),
-    .tmrErr(b_data_qTmrErrorB)
-  );
-
-majorityVoter b_full_qVoterB (
-    .inA(b_full_qA),
-    .inB(b_full_qB),
-    .inC(b_full_qC),
-    .out(b_full_qVotedB),
-    .tmrErr(b_full_qTmrErrorB)
-  );
 assign tmrErrorB = a_data_qTmrErrorB|a_full_qTmrErrorB|b_data_qTmrErrorB|b_full_qTmrErrorB;
 
-majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) a_data_qVoterC (
-    .inA(a_data_qA),
-    .inB(a_data_qB),
-    .inC(a_data_qC),
-    .out(a_data_qVotedC),
-    .tmrErr(a_data_qTmrErrorC)
-  );
-
-majorityVoter a_full_qVoterC (
-    .inA(a_full_qA),
-    .inB(a_full_qB),
-    .inC(a_full_qC),
-    .out(a_full_qVotedC),
-    .tmrErr(a_full_qTmrErrorC)
-  );
-
-majorityVoter #(.WIDTH( ($bits(a_data_qVotedA)) )) b_data_qVoterC (
-    .inA(b_data_qA),
-    .inB(b_data_qB),
-    .inC(b_data_qC),
-    .out(b_data_qVotedC),
-    .tmrErr(b_data_qTmrErrorC)
-  );
-
-majorityVoter b_full_qVoterC (
-    .inA(b_full_qA),
-    .inB(b_full_qB),
-    .inC(b_full_qC),
-    .out(b_full_qVotedC),
-    .tmrErr(b_full_qTmrErrorC)
-  );
 assign tmrErrorC = a_data_qTmrErrorC|a_full_qTmrErrorC|b_data_qTmrErrorC|b_full_qTmrErrorC;
 endmodule
 

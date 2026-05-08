@@ -49,13 +49,13 @@ module floo_vc_arbiterTMR import floo_pkg::*; #(
   output flit_t [NumPhysChannels - 1:0] data_o,
   output tmrError
 );
-wor i_rr_vc_arbitertmrError;
-assign i_rr_vc_arbitertmrError = 1'b0;
+wire i_rr_vc_arbitertmrError;
 if (NumVirtChannels==NumPhysChannels)
   begin : gen_virt_eq_phys
     assign valid_o = valid_i;
     assign ready_o = ready_i;
     assign data_o = data_i;
+    assign i_rr_vc_arbitertmrError = 1'b0;
   end
 
 else

@@ -217,7 +217,7 @@ module floo_nw_router_fi_dut_wrapper #(
     );
   `else  // TARGET_NETLIST (baseline only — STMR netlist not supported)
   // Synth wrapper: scalar id_route_map_i, no parameter list.
-    `ifndef HAS_TMR
+    `ifndef FLIT_TMR
     floo_synth_nw_router i_dut (
       .clk_i          ( clk_i                 ),
       .rst_ni         ( rst_ni                ),
@@ -239,40 +239,53 @@ module floo_nw_router_fi_dut_wrapper #(
       .rst_niA         ( rst_ni                ),
       .rst_niB         ( rst_ni                ),
       .rst_niC         ( rst_ni                ),
-      .test_enable_iA  ( 1'b0                  ),
-      .test_enable_iB  ( 1'b0                  ),
-      .test_enable_iC  ( 1'b0                  ),
-      .id_iA           ( id_i                  ),
-      .id_iB           ( id_i                  ),
-      .id_iC           ( id_i                  ),
-      .id_route_map_iA ( id_route_map_i[0]     ),
-      .id_route_map_iB ( id_route_map_i[0]     ),
-      .id_route_map_iC ( id_route_map_i[0]     ),
-      .floo_req_iA     ( floo_req_i            ),
-      .floo_req_iB     ( floo_req_i            ),
-      .floo_req_iC     ( floo_req_i            ),
-      .floo_rsp_iA     ( floo_rsp_i            ),
-      .floo_rsp_iB     ( floo_rsp_i            ),
-      .floo_rsp_iC     ( floo_rsp_i            ),
-      .floo_req_oA     ( req_oA                ),
-      .floo_req_oB     ( req_oB                ),
-      .floo_req_oC     ( req_oC                ),
-      .floo_rsp_oA     ( rsp_oA                ),
-      .floo_rsp_oB     ( rsp_oB                ),
-      .floo_rsp_oC     ( rsp_oC                ),
-      .floo_wide_iA    ( floo_wide_i           ),
-      .floo_wide_iB    ( floo_wide_i           ),
-      .floo_wide_iC    ( floo_wide_i           ),
-      .floo_wide_oA    ( wide_oA               ),
-      .floo_wide_oB    ( wide_oB               ),
-      .floo_wide_oC    ( wide_oC               )
-    `ifdef TARGET_FTMR
-      , .tmrErrorA       ( tmrErrorA             )
-      , .tmrErrorB       ( tmrErrorB             )
-      , .tmrErrorC       ( tmrErrorC             )
-    `endif
+      `ifndef TARGET_STMR
+        .test_enable_iA  ( 1'b0                  ),
+        .test_enable_iB  ( 1'b0                  ),
+        .test_enable_iC  ( 1'b0                  ),
+        .id_iA           ( id_i                  ),
+        .id_iB           ( id_i                  ),
+        .id_iC           ( id_i                  ),
+        .id_route_map_iA ( id_route_map_i[0]     ),
+        .id_route_map_iB ( id_route_map_i[0]     ),
+        .id_route_map_iC ( id_route_map_i[0]     ),
+        .floo_req_iA     ( floo_req_i            ),
+        .floo_req_iB     ( floo_req_i            ),
+        .floo_req_iC     ( floo_req_i            ),
+        .floo_rsp_iA     ( floo_rsp_i            ),
+        .floo_rsp_iB     ( floo_rsp_i            ),
+        .floo_rsp_iC     ( floo_rsp_i            ),
+        .floo_req_oA     ( req_oA                ),
+        .floo_req_oB     ( req_oB                ),
+        .floo_req_oC     ( req_oC                ),
+        .floo_rsp_oA     ( rsp_oA                ),
+        .floo_rsp_oB     ( rsp_oB                ),
+        .floo_rsp_oC     ( rsp_oC                ),
+        .floo_wide_iA    ( floo_wide_i           ),
+        .floo_wide_iB    ( floo_wide_i           ),
+        .floo_wide_iC    ( floo_wide_i           ),
+        .floo_wide_oA    ( wide_oA               ),
+        .floo_wide_oB    ( wide_oB               ),
+        .floo_wide_oC    ( wide_oC               )
+        `ifdef TARGET_FTMR
+        , .tmrErrorA       ( tmrErrorA             )
+        , .tmrErrorB       ( tmrErrorB             )
+        , .tmrErrorC       ( tmrErrorC             )
+        `endif
+      `else // TARGET_STMR
+        .test_enable_i  ( 1'b0                  ),
+        .id_i           ( id_i                  ),
+        .id_route_map_i ( id_route_map_i[0]     ),
+        .floo_req_i     ( floo_req_i            ),
+        .floo_rsp_i     ( floo_rsp_i            ),
+        .floo_req_o     ( floo_req_o            ),
+        .floo_rsp_o     ( floo_rsp_o            ),
+        .floo_wide_i    ( floo_wide_i           ),
+        .floo_wide_o    ( floo_wide_o           ),
+        .tmrError       ( tmrError              )
+      `endif
     );
-    `endif // HAS_TMR
+    `endif // FLIT_TMR
   `endif // TARGET_NETLIST
 
   `ifdef TARGET_FTMR

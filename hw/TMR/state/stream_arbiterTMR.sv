@@ -49,7 +49,7 @@ module stream_arbiterTMR #(
   input logic oup_ready_i,
   output tmrError
 );
-wor i_arbtmrError;
+wire i_arbtmrError;
 
 stream_arbiter_flushableTMR #(.DATA_T(DATA_T), .N_INP(N_INP), .ARBITER(ARBITER)) i_arb (
     .clk_iA(clk_iA),

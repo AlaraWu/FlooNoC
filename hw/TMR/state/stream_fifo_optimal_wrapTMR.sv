@@ -57,10 +57,8 @@ module stream_fifo_optimal_wrapTMR #(
 // but both i_*tmrError signals are OR'd into the output. The inactive branch
 // leaves its wire undriven (X/Z), poisoning tmrError. wor + ground-tie below
 // fixes both branches.
-wor i_stream_fifotmrError;
-wor i_spill_register_flushabletmrError;
-assign i_stream_fifotmrError = 1'b0;
-assign i_spill_register_flushabletmrError = 1'b0;
+wire i_stream_fifotmrError;
+wire i_spill_register_flushabletmrError;
 if (Depth==32'd2)
   begin : gen_spill
 `ifndef SYNTHESIS
@@ -90,6 +88,7 @@ initial
         .tmrError(i_spill_register_flushabletmrError)
       );
     assign usage_o = 'x;
+    assign i_stream_fifotmrError = 1'b0;
   end
 if (Depth>32'd2)
   begin : gen_fifo
@@ -121,6 +120,7 @@ initial
         .ready_i(ready_i),
         .tmrError(i_stream_fifotmrError)
       );
+    assign i_spill_register_flushabletmrError = 1'b0;
   end
 assign tmrError = i_spill_register_flushabletmrError|i_stream_fifotmrError;
 endmodule : stream_fifo_optimal_wrapTMR

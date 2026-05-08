@@ -53,8 +53,8 @@ module floo_output_arbiterTMR import floo_pkg::*; #(
   output flit_t data_o,
   output tmrError
 );
-wor i_wormhole_arbitertmrError;
-wor i_stream_arbitertmrError;
+wire i_wormhole_arbitertmrError;
+wire i_stream_arbitertmrError;
 flit_t reduce_data_out;
 flit_t unicast_data_out;
 logic [NumRoutes - 1:0] reduce_valid_in;

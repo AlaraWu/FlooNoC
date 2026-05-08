@@ -73,10 +73,10 @@ wire T a_data_nA;
 wire a_data_enC;
 wire a_data_enB;
 wire a_data_enA;
-wor b_full_qTmrError;
-wor b_data_qTmrError;
-wor a_full_qTmrError;
-wor a_data_qTmrError;
+wire b_full_qTmrError;
+wire b_data_qTmrError;
+wire a_full_qTmrError;
+wire a_data_qTmrError;
 wire b_full_q;
 wire T b_data_q;
 wire a_full_q;
@@ -102,6 +102,10 @@ if (Bypass)
     assign valid_o = valid_i;
     assign ready_o = ready_i;
     assign data_o = data_i;
+    assign a_data_qTmrError = 1'b0;
+    assign a_full_qTmrError = 1'b0;
+    assign b_data_qTmrError = 1'b0;
+    assign b_full_qTmrError = 1'b0;
   end
 
 else
@@ -238,6 +242,38 @@ logic b_full_n;
             b_full_qC <= b_full_nC;
 
       end
+
+    majorityVoter #(.WIDTH( ($bits(a_data_q)) )) a_data_qVoter (
+        .inA(a_data_qA),
+        .inB(a_data_qB),
+        .inC(a_data_qC),
+        .out(a_data_q),
+        .tmrErr(a_data_qTmrError)
+      );
+
+    majorityVoter a_full_qVoter (
+        .inA(a_full_qA),
+        .inB(a_full_qB),
+        .inC(a_full_qC),
+        .out(a_full_q),
+        .tmrErr(a_full_qTmrError)
+      );
+
+    majorityVoter #(.WIDTH( ($bits(a_data_q)) )) b_data_qVoter (
+        .inA(b_data_qA),
+        .inB(b_data_qB),
+        .inC(b_data_qC),
+        .out(b_data_q),
+        .tmrErr(b_data_qTmrError)
+      );
+
+    majorityVoter b_full_qVoter (
+        .inA(b_full_qA),
+        .inB(b_full_qB),
+        .inC(b_full_qC),
+        .out(b_full_q),
+        .tmrErr(b_full_qTmrError)
+      );
     assign a_fill = valid_i&&ready_o&& (! flush_i ) ;
     assign a_drain =  (a_full_q&&!b_full_q) ||flush_i;
     assign b_fill = a_drain&& (! ready_i ) && (! flush_i ) ;
@@ -303,37 +339,6 @@ logic b_full_n;
       );
   end
 
-majorityVoter #(.WIDTH( ($bits(a_data_q)) )) a_data_qVoter (
-    .inA(a_data_qA),
-    .inB(a_data_qB),
-    .inC(a_data_qC),
-    .out(a_data_q),
-    .tmrErr(a_data_qTmrError)
-  );
-
-majorityVoter a_full_qVoter (
-    .inA(a_full_qA),
-    .inB(a_full_qB),
-    .inC(a_full_qC),
-    .out(a_full_q),
-    .tmrErr(a_full_qTmrError)
-  );
-
-majorityVoter #(.WIDTH( ($bits(a_data_q)) )) b_data_qVoter (
-    .inA(b_data_qA),
-    .inB(b_data_qB),
-    .inC(b_data_qC),
-    .out(b_data_q),
-    .tmrErr(b_data_qTmrError)
-  );
-
-majorityVoter b_full_qVoter (
-    .inA(b_full_qA),
-    .inB(b_full_qB),
-    .inC(b_full_qC),
-    .out(b_full_q),
-    .tmrErr(b_full_qTmrError)
-  );
 assign tmrError = a_data_qTmrError|a_full_qTmrError|b_data_qTmrError|b_full_qTmrError;
 endmodule
 

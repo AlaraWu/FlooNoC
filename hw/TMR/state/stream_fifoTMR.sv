@@ -54,7 +54,7 @@ module stream_fifoTMR #(
   input logic ready_i,
   output tmrError
 );
-wor fifo_itmrError;
+wire fifo_itmrError;
 logic push;
 logic pop;
 logic empty;

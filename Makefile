@@ -41,6 +41,9 @@ endif
 ifeq ($(TMR),coarse)
     BENDER_FLAGS += -t ctmr
 endif
+ifeq ($(TMR),stmr)
+	BENDER_FLAGS += -t stmr
+endif
 BENDER_FLAGS := $(BENDER_FLAGS) $(EXTRA_BENDER_FLAGS)
 
 WORK 	 		?= work

@@ -87,9 +87,9 @@ localparam axi_narrow_b_chan_t NarrowBMask = '{resp: 2'b11, default: '0};
 localparam floo_axi_narrow_b_flit_t NarrowBFlitMask = '{payload: NarrowBMask, hdr: '0, rsvd: '0};
 localparam axi_narrow_b_chan_t WideBMask = '{resp: 2'b11, default: '0};
 localparam floo_axi_wide_b_flit_t WideBFlitMask = '{payload: WideBMask, hdr: '0, rsvd: '0};
-wor i_wide_req_floo_routertmrError;
-wor i_rsp_floo_routertmrError;
-wor i_req_floo_routertmrError;
+wire i_wide_req_floo_routertmrError;
+wire i_rsp_floo_routertmrError;
+wire i_req_floo_routertmrError;
 floo_req_chan_t [NumInputs - 1:0] req_in;
 floo_rsp_chan_t [NumInputs - 1:0] rsp_out;
 floo_req_chan_t [NumOutputs - 1:0] req_out;
@@ -196,8 +196,6 @@ assign tmrError = i_req_floo_routertmrError|i_rsp_floo_routertmrError|i_wide_req
 endmodule
 
 
-
-// /scratch/chenwu/tmrg/tmrg/../common/voter.v
 module majorityVoter #(
   parameter WIDTH = 1
 )(
@@ -205,19 +203,10 @@ module majorityVoter #(
   input wire  [WIDTH-1:0] inB,
   input wire  [WIDTH-1:0] inC,
   output wire [WIDTH-1:0] out,
-  output reg              tmrErr
+  output wire             tmrErr
 );
-  assign out = (inA&inB) | (inA&inC) | (inB&inC);
-  // X-tolerant tmrErr: use === so a replica that flips an X-poisoned bit to a
-  // definite value still asserts the error. With the original `!=`, all-X
-  // inputs produced a stuck-X tmrErr that masked every fault-injection event
-  // and made the strobe report zero CI.
-  always @(inA or inB or inC) begin
-    if (inA!==inB || inA!==inC || inB!==inC)
-      tmrErr = 1'b1;
-    else
-      tmrErr = 1'b0;
-  end
+  assign out    = (inA&inB) | (inA&inC) | (inB&inC);
+  assign tmrErr = (inA !== inB) || (inB !== inC);
 endmodule
 
 

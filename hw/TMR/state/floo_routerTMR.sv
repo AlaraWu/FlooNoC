@@ -72,17 +72,15 @@ module floo_routerTMR import floo_pkg::*; #(
 wire [ (NumInput-1) :0] [ (NumVirtChannels-1) :0] [ (NumOutput-1) :0] past_handshakes_dC;
 wire [ (NumInput-1) :0] [ (NumVirtChannels-1) :0] [ (NumOutput-1) :0] past_handshakes_dB;
 wire [ (NumInput-1) :0] [ (NumVirtChannels-1) :0] [ (NumOutput-1) :0] past_handshakes_dA;
-wor i_wormhole_arbitertmrError;
-wor i_vc_arbitertmrError;
-wor i_stream_fifotmrError;
-wor i_route_selecttmrError;
-wor i_output_arbitertmrError;
-assign i_wormhole_arbitertmrError = 1'b0;
-assign i_vc_arbitertmrError       = 1'b0;
-assign i_stream_fifotmrError      = 1'b0;
-assign i_route_selecttmrError     = 1'b0;
-assign i_output_arbitertmrError   = 1'b0;
-wor past_handshakes_qTmrError;
+
+wire [NumOutput - 1:0] [NumVirtChannels - 1:0] i_wormhole_arbitertmrError;
+wire [NumOutput - 1:0] [NumVirtChannels - 1:0] i_stream_fifo2tmrError;
+wire [NumOutput - 1:0] i_vc_arbitertmrError;
+wire [NumInput - 1:0] [NumVirtChannels - 1:0] i_stream_fifotmrError;
+wire [NumInput - 1:0] [NumVirtChannels - 1:0] i_route_selecttmrError;
+wire [NumOutput - 1:0] [NumVirtChannels - 1:0] i_output_arbitertmrError;
+wire past_handshakes_qTmrError;
+
 wire [ (NumInput-1) :0] [ (NumVirtChannels-1) :0] [ (NumOutput-1) :0] past_handshakes_q;
 flit_t [NumInput - 1:0] [NumVirtChannels - 1:0] in_data;
 flit_t [NumInput - 1:0] [NumVirtChannels - 1:0] in_routed_data;
@@ -125,7 +123,7 @@ logic [cf_math_pkg::idx_width(NumPhysChannels) - 1:0] in_p;
             .data_o(in_data[in][v]),
             .valid_o(in_valid[in][v]),
             .ready_i(in_ready[in][v]),
-            .tmrError(i_stream_fifotmrError)
+            .tmrError(i_stream_fifotmrError[in][v])
           );
 
         floo_route_selectTMR #(.NumRoutes(NumOutput), .flit_t(flit_t), .RouteAlgo(RouteAlgo), .IdWidth(IdWidth), .id_t(id_t), .NumAddrRules(NumAddrRules), .addr_rule_t(addr_rule_t), .EnMultiCast(EnMultiCast)) i_route_select (
@@ -144,7 +142,7 @@ logic [cf_math_pkg::idx_width(NumPhysChannels) - 1:0] in_p;
             .channel_o(in_routed_data[in][v]),
             .route_sel_o(route_mask[in][v]),
             .route_sel_id_o(),
-            .tmrError(i_route_selecttmrError)
+            .tmrError(i_route_selecttmrError[in][v])
           );
       end
   end
@@ -271,8 +269,10 @@ for(genvar out = 0; out<NumOutput; out++)
                 .valid_o(out_valid[out][v]),
                 .ready_i(out_ready[out][v]),
                 .data_o(out_data[out][v]),
-                .tmrError(i_wormhole_arbitertmrError)
+                .tmrError(i_wormhole_arbitertmrError[out][v])
               );
+
+            assign i_output_arbitertmrError[out][v] = 1'b0;
           end
 
         else
@@ -292,8 +292,10 @@ for(genvar out = 0; out<NumOutput; out++)
                 .valid_o(out_valid[out][v]),
                 .ready_i(out_ready[out][v]),
                 .data_o(out_data[out][v]),
-                .tmrError(i_output_arbitertmrError)
+                .tmrError(i_output_arbitertmrError[out][v])
               );
+
+            assign i_wormhole_arbitertmrError[out][v] = 1'b0;
           end
         if (OutFifoDepth>0)
                   begin : gen_out_fifo
@@ -314,7 +316,7 @@ for(genvar out = 0; out<NumOutput; out++)
                 .data_o(out_buffered_data[out][v]),
                 .valid_o(out_buffered_valid[out][v]),
                 .ready_i(out_buffered_ready[out][v]),
-                .tmrError(i_stream_fifotmrError)
+                .tmrError(i_stream_fifo2tmrError[out][v])
               );
           end
 
@@ -323,6 +325,7 @@ for(genvar out = 0; out<NumOutput; out++)
             assign out_buffered_data[out][v] = out_data[out][v];
             assign out_buffered_valid[out][v] = out_valid[out][v];
             assign out_ready[out][v] = out_buffered_ready[out][v];
+            assign i_stream_fifo2tmrError[out][v] = 1'b0;
           end
       end
 
@@ -339,11 +342,11 @@ for(genvar out = 0; out<NumOutput; out++)
         .ready_i(ready_i[out]),
         .valid_o(valid_o[out]),
         .data_o(data_o[out]),
-        .tmrError(i_vc_arbitertmrError)
+        .tmrError(i_vc_arbitertmrError[out])
       );
   end
 
-assign tmrError = past_handshakes_qTmrError | i_output_arbitertmrError|i_route_selecttmrError|i_stream_fifotmrError|i_vc_arbitertmrError|i_wormhole_arbitertmrError;
+assign tmrError = past_handshakes_qTmrError | (|i_output_arbitertmrError)|(|i_route_selecttmrError)|(|i_stream_fifotmrError)|(|i_vc_arbitertmrError)|(|i_wormhole_arbitertmrError);
 
 fanout #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_dFanout (
     .in(past_handshakes_d),
