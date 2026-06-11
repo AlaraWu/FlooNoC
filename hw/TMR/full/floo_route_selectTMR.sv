@@ -423,100 +423,59 @@ logic [RouteSelWidth - 1:0] route_sel_id_qVotedC;
           end
       end
 
-    always_ff @( posedge clk_iA or negedge rst_niA )
-      begin
-        if (!rst_niA)
-          begin
-            route_sel_qA <= '0;
-          end
-        else
-          begin
-            if (~locked_route_qVotedA)
-              begin
-                route_sel_qA <= route_selA;
-              end
+    // Spill-style clock gating: real predicate OR'd with the FF's own voter
+    // error so a divergence on this register forces a heal. Next-state mux
+    // defaults to `_qVoted` so a heal-only event writes the voted value back
+    // into the diverged replica.
+    wire route_sel_q_enA    = ~locked_route_qVotedA | route_sel_qTmrErrorA;
+    wire route_sel_q_enB    = ~locked_route_qVotedB | route_sel_qTmrErrorB;
+    wire route_sel_q_enC    = ~locked_route_qVotedC | route_sel_qTmrErrorC;
+    wire route_sel_id_q_enA = ~locked_route_qVotedA | route_sel_id_qTmrErrorA;
+    wire route_sel_id_q_enB = ~locked_route_qVotedB | route_sel_id_qTmrErrorB;
+    wire route_sel_id_q_enC = ~locked_route_qVotedC | route_sel_id_qTmrErrorC;
+    logic [NumRoutes - 1:0] route_sel_nA, route_sel_nB, route_sel_nC;
+    logic [RouteSelWidth - 1:0] route_sel_id_nA, route_sel_id_nB, route_sel_id_nC;
+    assign route_sel_nA    = ~locked_route_qVotedA ? route_selA    : route_sel_qVotedA;
+    assign route_sel_nB    = ~locked_route_qVotedB ? route_selB    : route_sel_qVotedB;
+    assign route_sel_nC    = ~locked_route_qVotedC ? route_selC    : route_sel_qVotedC;
+    assign route_sel_id_nA = ~locked_route_qVotedA ? route_sel_idA : route_sel_id_qVotedA;
+    assign route_sel_id_nB = ~locked_route_qVotedB ? route_sel_idB : route_sel_id_qVotedB;
+    assign route_sel_id_nC = ~locked_route_qVotedC ? route_sel_idC : route_sel_id_qVotedC;
 
-          end
+    always_ff @( posedge clk_iA or negedge rst_niA )
+      begin : ps_route_sel_qA
+        if (!rst_niA)             route_sel_qA <= '0;
+        else if (route_sel_q_enA) route_sel_qA <= route_sel_nA;
       end
 
     always_ff @( posedge clk_iB or negedge rst_niB )
-      begin
-        if (!rst_niB)
-          begin
-            route_sel_qB <= '0;
-          end
-        else
-          begin
-            if (~locked_route_qVotedB)
-              begin
-                route_sel_qB <= route_selB;
-              end
-
-          end
+      begin : ps_route_sel_qB
+        if (!rst_niB)             route_sel_qB <= '0;
+        else if (route_sel_q_enB) route_sel_qB <= route_sel_nB;
       end
 
     always_ff @( posedge clk_iC or negedge rst_niC )
-      begin
-        if (!rst_niC)
-          begin
-            route_sel_qC <= '0;
-          end
-        else
-          begin
-            if (~locked_route_qVotedC)
-              begin
-                route_sel_qC <= route_selC;
-              end
-
-          end
+      begin : ps_route_sel_qC
+        if (!rst_niC)             route_sel_qC <= '0;
+        else if (route_sel_q_enC) route_sel_qC <= route_sel_nC;
       end
 
     always_ff @( posedge clk_iA or negedge rst_niA )
-      begin
-        if (!rst_niA)
-          begin
-            route_sel_id_qA <= '0;
-          end
-        else
-          begin
-            if (~locked_route_qVotedA)
-              begin
-                route_sel_id_qA <= route_sel_idA;
-              end
-
-          end
+      begin : ps_route_sel_id_qA
+        if (!rst_niA)                route_sel_id_qA <= '0;
+        else if (route_sel_id_q_enA) route_sel_id_qA <= route_sel_id_nA;
       end
 
     always_ff @( posedge clk_iB or negedge rst_niB )
-      begin
-        if (!rst_niB)
-          begin
-            route_sel_id_qB <= '0;
-          end
-        else
-          begin
-            if (~locked_route_qVotedB)
-              begin
-                route_sel_id_qB <= route_sel_idB;
-              end
-
-          end
+      begin : ps_route_sel_id_qB
+        if (!rst_niB)                route_sel_id_qB <= '0;
+        else if (route_sel_id_q_enB) route_sel_id_qB <= route_sel_id_nB;
       end
 
     always_ff @( posedge clk_iC or negedge rst_niC )
-      begin
-        if (!rst_niC)
-          begin
-            route_sel_id_qC <= '0;
-          end
-        else
-          begin
-            if (~locked_route_qVotedC)
-              begin
-                route_sel_id_qC <= route_sel_idC;
-              end
-
-          end
+      begin : ps_route_sel_id_qC
+        if (!rst_niC)                route_sel_id_qC <= '0;
+        else if (route_sel_id_q_enC) route_sel_id_qC <= route_sel_id_nC;
       end
 
     majorityVoter locked_route_qVoterA (

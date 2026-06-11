@@ -346,7 +346,7 @@ for(genvar out = 0; out<NumOutput; out++)
       );
   end
 
-assign tmrError = past_handshakes_qTmrError | (|i_output_arbitertmrError)|(|i_route_selecttmrError)|(|i_stream_fifotmrError)|(|i_vc_arbitertmrError)|(|i_wormhole_arbitertmrError);
+assign tmrError = past_handshakes_qTmrError | (|i_output_arbitertmrError)|(|i_route_selecttmrError)|(|i_stream_fifotmrError)|(|i_stream_fifo2tmrError)|(|i_vc_arbitertmrError)|(|i_wormhole_arbitertmrError);
 
 fanout #(.WIDTH( ((((NumInput-1)>0) ? (NumInput-1) : - ( NumInput-1 ) )+1)  *  ((((NumVirtChannels-1)>0) ? (NumVirtChannels-1) : - ( NumVirtChannels-1 ) )+1)  *  ((((NumOutput-1)>0) ? (NumOutput-1) : - ( NumOutput-1 ) )+1) )) past_handshakes_dFanout (
     .in(past_handshakes_d),

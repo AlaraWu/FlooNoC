@@ -100,9 +100,6 @@ module floo_nw_router_fi_dut_wrapper #(
   `ifdef TARGET_FTMR
     initial $fatal(1, "TARGET_STMR and TARGET_FTMR are mutually exclusive");
   `endif
-  `ifdef TARGET_NETLIST
-    initial $fatal(1, "TARGET_STMR has no synth-wrapper variant; TARGET_NETLIST not supported");
-  `endif
   `endif
 
   // --------------------------------------------------------------------
@@ -217,7 +214,7 @@ module floo_nw_router_fi_dut_wrapper #(
     );
   `else  // TARGET_NETLIST (baseline only — STMR netlist not supported)
   // Synth wrapper: scalar id_route_map_i, no parameter list.
-    `ifndef FLIT_TMR
+    `ifndef HAS_TMR
     floo_synth_nw_router i_dut (
       .clk_i          ( clk_i                 ),
       .rst_ni         ( rst_ni                ),
