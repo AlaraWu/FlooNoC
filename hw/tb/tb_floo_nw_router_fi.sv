@@ -469,6 +469,56 @@ module floo_nw_router_fi_dut_wrapper #(
   for (genvar i = 0; i < NumInputs; i++)  assign floo_rsp_o_flat[i]  = floo_rsp_o[i];
   for (genvar i = 0; i < NumRoutes; i++)  assign floo_wide_o_flat[i] = floo_wide_o[i];
 
+  // --------------------------------------------------------------------
+  // Per-field-group output slices for the strobe's error-kind axis.
+  // Each output link decomposes cleanly into three groups (packed union
+  // forces .generic to span the whole chan, so hdr|payload tile it exactly):
+  //   hdr  : .<chan>.generic.hdr      -> header corruption  (mis-route, ...)
+  //   pl   : .<chan>.generic.payload  -> payload corruption (data wrong)
+  //   hs   : {valid, ready}           -> handshake flip
+  // The strobe runs a separate $fs_compare on each group to tag the kind.
+  //
+  // hdr/pl are VALID-GATED (masked to 0 when !valid): the chan data lines are
+  // only meaningful during a valid beat. The output FIFO's holding register
+  // drives the chan bus even on idle (valid=0) cycles, so an SEU on a stale
+  // held flit would otherwise show up as a header/payload divergence (*H/*P)
+  // although it is never transmitted — a masked fault mis-tagged as an
+  // interface change. Gating by valid makes both GM and FM read 0 on idle
+  // cycles, so only divergences on an actually-presented flit are counted
+  // (a real send-time corruption, or a dropped beat where GM!=FM on valid).
+  // hs is left ungated — a valid-bit flip IS the divergence to catch.
+  // --------------------------------------------------------------------
+  localparam int HdrBits        = $bits(hdr_t);
+  localparam int FlooReqPlBits  = FlooReqBits  - 2 - HdrBits;
+  localparam int FlooRspPlBits  = FlooRspBits  - 2 - HdrBits;
+  localparam int FlooWidePlBits = FlooWideBits - 2 - HdrBits;
+
+  logic [NumOutputs-1:0][HdrBits-1:0]       floo_req_o_hdr_flat;
+  logic [NumInputs-1:0][HdrBits-1:0]        floo_rsp_o_hdr_flat;
+  logic [NumRoutes-1:0][HdrBits-1:0]        floo_wide_o_hdr_flat;
+  logic [NumOutputs-1:0][FlooReqPlBits-1:0] floo_req_o_pl_flat;
+  logic [NumInputs-1:0][FlooRspPlBits-1:0]  floo_rsp_o_pl_flat;
+  logic [NumRoutes-1:0][FlooWidePlBits-1:0] floo_wide_o_pl_flat;
+  logic [NumOutputs-1:0][1:0]               floo_req_o_hs_flat;
+  logic [NumInputs-1:0][1:0]                floo_rsp_o_hs_flat;
+  logic [NumRoutes-1:0][1:0]                floo_wide_o_hs_flat;
+
+  for (genvar i = 0; i < NumOutputs; i++) begin : gen_req_field_slice
+    assign floo_req_o_hdr_flat[i] = floo_req_o[i].valid ? floo_req_o[i].req.generic.hdr     : '0;
+    assign floo_req_o_pl_flat[i]  = floo_req_o[i].valid ? floo_req_o[i].req.generic.payload  : '0;
+    assign floo_req_o_hs_flat[i]  = {floo_req_o[i].valid, floo_req_o[i].ready};
+  end
+  for (genvar i = 0; i < NumInputs; i++) begin : gen_rsp_field_slice
+    assign floo_rsp_o_hdr_flat[i] = floo_rsp_o[i].valid ? floo_rsp_o[i].rsp.generic.hdr     : '0;
+    assign floo_rsp_o_pl_flat[i]  = floo_rsp_o[i].valid ? floo_rsp_o[i].rsp.generic.payload  : '0;
+    assign floo_rsp_o_hs_flat[i]  = {floo_rsp_o[i].valid, floo_rsp_o[i].ready};
+  end
+  for (genvar i = 0; i < NumRoutes; i++) begin : gen_wide_field_slice
+    assign floo_wide_o_hdr_flat[i] = floo_wide_o[i].valid ? floo_wide_o[i].wide.generic.hdr    : '0;
+    assign floo_wide_o_pl_flat[i]  = floo_wide_o[i].valid ? floo_wide_o[i].wide.generic.payload : '0;
+    assign floo_wide_o_hs_flat[i]  = {floo_wide_o[i].valid, floo_wide_o[i].ready};
+  end
+
   `ifdef TARGET_ZOIX
   `include "strobe.sv"
   `endif
@@ -639,7 +689,7 @@ module tb_floo_nw_router_fi;
 
   // NESW Endpoint Tiles
   floo_nw_tile #(
-    .DELAY ( 1 ),
+    .DELAY ( 10 ),
     .ApplTime ( ApplTime ),
     .TestTime ( TestTime ),
     .NarrowNumReads ( NarrowNumReads ),
@@ -682,7 +732,7 @@ module tb_floo_nw_router_fi;
   );
 
   floo_nw_tile #(
-    .DELAY ( 2 ),
+    .DELAY ( 20 ),
     .ApplTime ( ApplTime ),
     .TestTime ( TestTime ),
     .NarrowNumReads ( NarrowNumReads ),
@@ -725,7 +775,7 @@ module tb_floo_nw_router_fi;
   );
 
   floo_nw_tile #(
-    .DELAY ( 3 ),
+    .DELAY ( 30 ),
     .ApplTime ( ApplTime ),
     .TestTime ( TestTime ),
     .NarrowNumReads ( NarrowNumReads ),
@@ -768,7 +818,7 @@ module tb_floo_nw_router_fi;
   );
 
   floo_nw_tile #(
-    .DELAY ( 4 ),
+    .DELAY ( 40 ),
     .ApplTime ( ApplTime ),
     .TestTime ( TestTime ),
     .NarrowNumReads ( NarrowNumReads ),
@@ -871,7 +921,7 @@ module tb_floo_nw_router_fi;
   );
 
   floo_axi_test_node #(
-    .DELAY ( 1 ),
+    .DELAY ( 5 ),
     .AxiCfg         ( floo_test_pkg::AxiCfgW  ),
     .mst_req_t      ( axi_wide_in_req_t       ),
     .mst_rsp_t      ( axi_wide_in_rsp_t       ),
@@ -960,7 +1010,7 @@ module tb_floo_nw_router_fi;
   );
 
     floo_mesh_monitor #(
-      .Verbose ( 0 ),
+      .Verbose ( 1 ),
       .NumX ( 3 ),
       .NumY ( 3 ),
       .floo_req_t ( floo_req_t ),
