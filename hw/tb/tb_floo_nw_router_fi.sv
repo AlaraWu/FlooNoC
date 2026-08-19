@@ -539,6 +539,9 @@ module tb_floo_nw_router_fi;
   localparam time TestTime = 8ns;
 
   localparam int unsigned NumEndpoints = 5;  // N, E, S, W, Eject
+  // Keep the golden testcase alive after functional completion so a faulty
+  // machine with a bounded timing shift can drain before the common cutoff.
+  localparam int unsigned GraceCycles = 500;
 
   localparam int unsigned NarrowNumReads = 100;
   localparam int unsigned NarrowNumWrites = 100;
@@ -1010,7 +1013,7 @@ module tb_floo_nw_router_fi;
   );
 
     floo_mesh_monitor #(
-      .Verbose ( 1 ),
+      .Verbose ( 0 ),
       .NumX ( 3 ),
       .NumY ( 3 ),
       .floo_req_t ( floo_req_t ),
@@ -1085,7 +1088,13 @@ module tb_floo_nw_router_fi;
   initial begin
     $timeformat(-9, 2, " ns", 20);
     wait(&end_of_sim_endpoints && mesh_end_of_sim);
-    $display("[TB] All transactions verified by compare monitors. Stopping simulation.");
+    $display("[TB] All transactions verified by compare monitors. Draining for %0d cycles.",
+             GraceCycles);
+    repeat (GraceCycles) @(posedge clk);
+    // Let same-edge monitor NBAs and the +TestTime timing strobe settle before
+    // final fault classification runs at $finish.
+    #(TestTime + 300ps);
+    $display("[TB] Grace window complete. Stopping simulation.");
     $finish;
   end
 
